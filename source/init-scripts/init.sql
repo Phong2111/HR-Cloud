@@ -100,7 +100,7 @@ BEGIN
 
     -- Default admin user (password: admin123)
     INSERT INTO users (username, password, email, full_name, role, is_active)
-    VALUES ('admin', '$2a$10$VJdaYcSf.5eR5q8tBqO9aOxTxe7qDU9J5jYkpPTRNJCVpMzJ.MVDO', 'admin@hrcloud.com', 'System Admin', 'ADMIN', 1);
+    VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIvi', 'admin@hrcloud.com', 'System Admin', 'ADMIN', 1);
 
     PRINT 'Users table created with default admin.';
 END

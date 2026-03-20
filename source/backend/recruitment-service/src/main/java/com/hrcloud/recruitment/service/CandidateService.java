@@ -72,8 +72,8 @@ public class CandidateService {
         List<Criteria> conditions = new ArrayList<>();
 
         if (skills != null && !skills.isEmpty()) {
-            // Match candidates who have ALL specified skills (using $all operator)
-            conditions.add(Criteria.where("skills").all(skills));
+            // Match candidates who have ANY of the specified skills (using $in operator)
+            conditions.add(Criteria.where("skills").in(skills));
         }
         if (minExp != null) {
             conditions.add(Criteria.where("yearsExperience").gte(minExp));
