@@ -1,0 +1,151 @@
+version: '3.8'
+
+services:
+  # ─── SQL Server ─────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hrcloud-sqlserver
+    environment:
+      SA_PASSWORD: "HRCloud@123456"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - hrcloud-network
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "HRCloud@123456" -Q "SELECT 1" -C
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ─── MongoDB ────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: hrcloud-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - hrcloud-network
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─── SQL Init Service ───────────────────────────────────────────
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hrcloud-sql-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./init-scripts:/scripts
+    command: >
+      bash -c "
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P 'HRCloud@123456' -C -i /scripts/init.sql &&
+        echo 'Database initialized successfully'
+      "
+    networks:
+      - hrcloud-network
+    restart: "no"
+
+  # ─── Identity Service ───────────────────────────────────────────
+  identity-service:
+    build:
+      context: ./backend/identity-service
+      dockerfile: Dockerfile
+    container_name: hrcloud-identity
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=HRCloud;encrypt=false;trustServerCertificate=true
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: HRCloud@123456
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+    networks:
+      - hrcloud-network
+
+  # ─── Organization Service ────────────────────────────────────────
+  organization-service:
+    build:
+      context: ./backend/organization-service
+      dockerfile: Dockerfile
+    container_name: hrcloud-organization
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=HRCloud;encrypt=false;trustServerCertificate=true
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: HRCloud@123456
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+    networks:
+      - hrcloud-network
+
+  # ─── Leave Service ───────────────────────────────────────────────
+  leave-service:
+    build:
+      context: ./backend/leave-service
+      dockerfile: Dockerfile
+    container_name: hrcloud-leave
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=HRCloud;encrypt=false;trustServerCertificate=true
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: HRCloud@123456
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+    networks:
+      - hrcloud-network
+
+  # ─── Recruitment Service ─────────────────────────────────────────
+  recruitment-service:
+    build:
+      context: ./backend/recruitment-service
+      dockerfile: Dockerfile
+    container_name: hrcloud-recruitment
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/hrcloud_recruitment
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - hrcloud-network
+
+  # ─── Frontend ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hrcloud-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - identity-service
+      - organization-service
+      - leave-service
+      - recruitment-service
+    networks:
+      - hrcloud-network
+
+networks:
+  hrcloud-network:
+    driver: bridge
+
+volumes:
+  sqlserver_data:
+  mongodb_data:

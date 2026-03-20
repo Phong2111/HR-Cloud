@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: jdbc:sqlserver://sqlserver:1433;databaseName=HRCloud;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: HRCloud@123456
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: true
+
+jwt:
+  secret: hrcloud_super_secret_key_for_jwt_signing_must_be_256_bits_minimum_32_chars
+  expiration-ms: 86400000
+
+logging:
+  level:
+    com.hrcloud: DEBUG
+    org.springframework.security: DEBUG

@@ -1,0 +1,19 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: recruitment-service
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/hrcloud_recruitment
+      database: hrcloud_recruitment
+
+jwt:
+  secret: hrcloud_super_secret_key_for_jwt_signing_must_be_256_bits_minimum_32_chars
+  expiration-ms: 86400000
+
+logging:
+  level:
+    com.hrcloud: DEBUG
+    org.springframework.data.mongodb: DEBUG
