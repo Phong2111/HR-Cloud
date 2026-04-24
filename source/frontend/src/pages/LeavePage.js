@@ -8,6 +8,12 @@ export default function LeavePage() {
   const [form, setForm] = useState({ staffId: '', days: '' });
   const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [balanceLookupId, setBalanceLookupId] = useState('');
+  const [balanceInfo, setBalanceInfo] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [historyStaffId, setHistoryStaffId] = useState('');
+  const [staffHistory, setStaffHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -41,6 +47,41 @@ export default function LeavePage() {
       setResult({ status: 'Error', message: err.response?.data?.error || 'Lỗi kết nối server' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleLookupBalance = async () => {
+    if (!balanceLookupId) {
+      setBalanceInfo(null);
+      return;
+    }
+
+    setBalanceLoading(true);
+    setBalanceInfo(null);
+    try {
+      const res = await leaveService.getLeaveBalance(parseInt(balanceLookupId));
+      setBalanceInfo(res.data);
+    } catch (err) {
+      setBalanceInfo({ error: err.response?.data?.error || 'Không thể tra cứu ngày phép' });
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  const handleLoadHistory = async () => {
+    if (!historyStaffId) {
+      setStaffHistory([]);
+      return;
+    }
+
+    setHistoryLoading(true);
+    try {
+      const res = await leaveService.getLeavesByStaff(parseInt(historyStaffId));
+      setStaffHistory(res.data);
+    } catch (err) {
+      setStaffHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -123,6 +164,90 @@ export default function LeavePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="grid-2 mt-4">
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">🔎 Tra cứu ngày phép từ backend</h3>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Chọn nhân viên</label>
+              <select className="form-input" value={balanceLookupId} onChange={e => setBalanceLookupId(e.target.value)}>
+                <option value="">-- Chọn nhân viên --</option>
+                {staff.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>
+                ))}
+              </select>
+            </div>
+            <button className="btn btn-primary" onClick={handleLookupBalance} disabled={balanceLoading}>
+              {balanceLoading ? '⏳ Đang tra cứu...' : 'Tra cứu balance'}
+            </button>
+            {balanceInfo && (
+              <div className={`alert mt-4 ${balanceInfo.error ? 'alert-error' : 'alert-success'}`}>
+                {balanceInfo.error ? (
+                  balanceInfo.error
+                ) : (
+                  <div>
+                    <div><strong>{balanceInfo.staffName}</strong> (#{balanceInfo.staffId})</div>
+                    <div>Còn lại: <strong>{balanceInfo.leaveBalance}</strong> ngày</div>
+                    <div>Yêu cầu đã duyệt: <strong>{balanceInfo.approvedRequestsCount}</strong></div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">📚 Lịch sử theo nhân viên</h3>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nhân viên</label>
+              <select className="form-input" value={historyStaffId} onChange={e => setHistoryStaffId(e.target.value)}>
+                <option value="">-- Chọn nhân viên --</option>
+                {staff.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>
+                ))}
+              </select>
+            </div>
+            <button className="btn btn-outline" onClick={handleLoadHistory} disabled={historyLoading}>
+              {historyLoading ? '⏳ Đang tải...' : 'Xem lịch sử'}
+            </button>
+            {staffHistory.length > 0 ? (
+              <div className="table-container mt-4">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Số ngày</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffHistory.map(item => (
+                      <tr key={item.id}>
+                        <td>#{item.id}</td>
+                        <td>{item.days} ngày</td>
+                        <td>
+                          <span className={`badge ${item.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              historyStaffId && !historyLoading && (
+                <div className="empty-state" style={{ marginTop: 16 }}>
+                  <div className="icon">📚</div>
+                  <p>Chưa có dữ liệu lịch sử cho nhân viên này</p>
+                </div>
+              )
+            )}
           </div>
         </div>
 

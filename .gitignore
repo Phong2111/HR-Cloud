@@ -1,0 +1,22 @@
+# Build outputs
+**/target/
+**/build/
+**/dist/
+**/out/
+
+# Java / JVM
+*.class
+*.jar
+*.war
+*.ear
+
+# Node / React
+node_modules/
+source/frontend/build/
+source/frontend/.cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

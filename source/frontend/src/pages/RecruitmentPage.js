@@ -110,7 +110,10 @@ export default function RecruitmentPage() {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [formMode, setFormMode] = useState('create');
+  const [editingCandidateId, setEditingCandidateId] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [searchParams, setSearchParams] = useState({ skills: [], minExp: '', position: '' });
 
@@ -120,6 +123,52 @@ export default function RecruitmentPage() {
   });
 
   useEffect(() => { fetchAll(); }, []);
+
+  const resetForm = () => {
+    setForm({ fullName: '', email: '', phone: '', position: '', yearsExperience: '', skills: [], cvUrl: '' });
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setFormMode('create');
+    setEditingCandidateId(null);
+    setShowModal(true);
+  };
+
+  const openCandidateDetail = async (id) => {
+    setDetailLoading(true);
+    setMessage(null);
+    try {
+      const res = await recruitService.getCandidateById(id);
+      setSelectedCandidate(res.data);
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Không thể tải chi tiết ứng viên' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openEditModal = async (id) => {
+    setMessage(null);
+    try {
+      const res = await recruitService.getCandidateById(id);
+      const candidate = res.data;
+      setForm({
+        fullName: candidate.fullName || '',
+        email: candidate.email || '',
+        phone: candidate.phone || '',
+        position: candidate.position || '',
+        yearsExperience: candidate.yearsExperience?.toString() || '',
+        skills: candidate.skills || [],
+        cvUrl: candidate.cvUrl || '',
+      });
+      setFormMode('edit');
+      setEditingCandidateId(candidate.id);
+      setShowModal(true);
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Không thể tải hồ sơ để chỉnh sửa' });
+    }
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -149,19 +198,29 @@ export default function RecruitmentPage() {
     }
   };
 
-  const handleCreate = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     try {
-      await recruitService.createCandidate({
+      const payload = {
         ...form,
         yearsExperience: parseInt(form.yearsExperience) || 0,
-      });
-      setMessage({ type: 'success', text: 'Thêm ứng viên thành công!' });
+      };
+
+      if (formMode === 'edit' && editingCandidateId) {
+        await recruitService.updateCandidate(editingCandidateId, payload);
+        setMessage({ type: 'success', text: 'Cập nhật ứng viên thành công!' });
+      } else {
+        await recruitService.createCandidate(payload);
+        setMessage({ type: 'success', text: 'Thêm ứng viên thành công!' });
+      }
+
       setShowModal(false);
-      setForm({ fullName: '', email: '', phone: '', position: '', yearsExperience: '', skills: [], cvUrl: '' });
+      resetForm();
+      setFormMode('create');
+      setEditingCandidateId(null);
       fetchAll();
     } catch (err) {
-      setMessage({ type: 'error', text: 'Lỗi khi thêm ứng viên' });
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Lỗi khi lưu ứng viên' });
     }
   };
 
@@ -190,7 +249,7 @@ export default function RecruitmentPage() {
     <div>
       <div className="page-header">
         <h2>🎯 Tuyển dụng - Hồ sơ ứng viên</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)} id="btn-add-candidate">
+        <button className="btn btn-primary" onClick={openCreateModal} id="btn-add-candidate">
           + Thêm ứng viên
         </button>
       </div>
@@ -260,7 +319,7 @@ export default function RecruitmentPage() {
                       <td>
                         <strong
                           style={{ cursor: 'pointer', color: 'var(--primary)' }}
-                          onClick={() => setSelectedCandidate(c)}
+                          onClick={() => openCandidateDetail(c.id)}
                         >{c.fullName}</strong>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{c.email}</td>
@@ -285,6 +344,9 @@ export default function RecruitmentPage() {
                         </select>
                       </td>
                       <td>
+                        <button className="btn btn-outline btn-sm" onClick={() => openEditModal(c.id)} style={{ marginRight: 8 }}>
+                          ✏
+                        </button>
                         <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c.id)}>🗑</button>
                       </td>
                     </tr>
@@ -307,10 +369,10 @@ export default function RecruitmentPage() {
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
             <div className="modal-header">
-              <h3 className="modal-title">➕ Thêm ứng viên mới</h3>
+              <h3 className="modal-title">{formMode === 'edit' ? '✏ Chỉnh sửa ứng viên' : '➕ Thêm ứng viên mới'}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleSave}>
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Họ tên *</label>
@@ -347,9 +409,14 @@ export default function RecruitmentPage() {
                     onChange={v => setForm({ ...form, skills: v })}
                   />
                 </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label className="form-label">CV / Hồ sơ URL</label>
+                  <input className="form-input" type="text" value={form.cvUrl}
+                    onChange={e => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://..." />
+                </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button type="submit" className="btn btn-primary">✓ Lưu ứng viên</button>
+                <button type="submit" className="btn btn-primary">✓ {formMode === 'edit' ? 'Cập nhật ứng viên' : 'Lưu ứng viên'}</button>
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Hủy</button>
               </div>
             </form>
@@ -358,30 +425,50 @@ export default function RecruitmentPage() {
       )}
 
       {/* Candidate Detail Modal */}
-      {selectedCandidate && (
+      {(selectedCandidate || detailLoading) && (
         <div className="modal-backdrop" onClick={() => setSelectedCandidate(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 600 }}>
             <div className="modal-header">
-              <h3 className="modal-title">👤 {selectedCandidate.fullName}</h3>
+              <h3 className="modal-title">👤 {detailLoading ? 'Đang tải...' : selectedCandidate.fullName}</h3>
               <button className="modal-close" onClick={() => setSelectedCandidate(null)}>✕</button>
             </div>
-            <div>
-              <p><strong>Email:</strong> {selectedCandidate.email}</p>
-              <p><strong>Điện thoại:</strong> {selectedCandidate.phone}</p>
-              <p><strong>Vị trí:</strong> <span className="tag" style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--primary)' }}>{selectedCandidate.position}</span></p>
-              <p><strong>Kinh nghiệm:</strong> {selectedCandidate.yearsExperience} năm</p>
-              <div className="mt-4">
-                <strong>Kỹ năng:</strong>
-                <div className="tags mt-4">
-                  {(selectedCandidate.skills || []).map(s => <span key={s} className="tag">{s}</span>)}
+            {detailLoading ? (
+              <div className="loading"><div className="spinner" /> Đang tải...</div>
+            ) : (
+              <div>
+                <p><strong>Email:</strong> {selectedCandidate.email}</p>
+                <p><strong>Điện thoại:</strong> {selectedCandidate.phone}</p>
+                <p><strong>Vị trí:</strong> <span className="tag" style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--primary)' }}>{selectedCandidate.position}</span></p>
+                <p><strong>Kinh nghiệm:</strong> {selectedCandidate.yearsExperience} năm</p>
+                {selectedCandidate.cvUrl && (
+                  <p><strong>CV:</strong> <a href={selectedCandidate.cvUrl} target="_blank" rel="noreferrer">Xem hồ sơ</a></p>
+                )}
+                <div className="mt-4">
+                  <strong>Kỹ năng:</strong>
+                  <div className="tags mt-4">
+                    {(selectedCandidate.skills || []).map(s => <span key={s} className="tag">{s}</span>)}
+                  </div>
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <span className={`badge ${STATUS_COLORS[selectedCandidate.status]}`} style={{ fontSize: 13, padding: '6px 14px' }}>
+                    {selectedCandidate.status}
+                  </span>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      const currentId = selectedCandidate.id;
+                      setSelectedCandidate(null);
+                      await openEditModal(currentId);
+                    }}
+                  >
+                    ✏ Chỉnh sửa
+                  </button>
+                  <button className="btn btn-outline" onClick={() => setSelectedCandidate(null)}>Đóng</button>
                 </div>
               </div>
-              <div style={{ marginTop: 16 }}>
-                <span className={`badge ${STATUS_COLORS[selectedCandidate.status]}`} style={{ fontSize: 13, padding: '6px 14px' }}>
-                  {selectedCandidate.status}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}

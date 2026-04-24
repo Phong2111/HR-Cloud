@@ -1,0 +1,32 @@
+HUONG DAN TEST HR CLOUD PLATFORM
+
+CHI 1 LENH DE CHAY TOAN BO HE THONG BANG DOCKER
+- Mo terminal tai thu muc goc HR-Cloud
+- Chay: docker compose -f source/docker-compose.yml up -d --build
+
+Sau khi chay xong:
+- Mo trinh duyet tai: http://localhost
+- Tai khoan mac dinh: admin / admin123
+
+Kiem tra nhanh cac chuc nang
+- Dashboard: xem thong ke tong quan.
+- So do to chuc: xem cay org chart, them/sua/xoa nhan vien, xem chi tiet.
+- Nghi phep: gui yeu cau, tra cuu leave balance, xem lich su theo nhan vien.
+- Tuyen dung: tim kiem ung vien, xem chi tiet, them/sua/xoa, cap nhat trang thai.
+
+Dau hieu da noi backend thanh cong
+- Dang nhap vao duoc Dashboard.
+- Cac man hinh load du lieu tu API.
+- CRUD cap nhat xong va load lai du lieu dung.
+- Neu backend loi, giao dien hien thong bao loi.
+
+Neu gap loi
+- Kiem tra Docker Desktop da mo chua.
+- Kiem tra cong localhost 80, 8081, 8082, 8083, 8084 co bi trung khong.
+- Neu frontend khong vao duoc, tai lai http://localhost sau khi RUN_HRCloud.bat chay xong.
+
+Goi y test nhanh
+- Test 1: Dang nhap -> Dashboard -> So do to chuc.
+- Test 2: Them 1 nhan vien moi -> kiem tra org chart cap nhat.
+- Test 3: Gui 1 yeu cau nghi phep -> kiem tra status va leave balance.
+- Test 4: Them 1 ung vien moi -> tim kiem -> cap nhat trang thai.
