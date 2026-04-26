@@ -29,4 +29,7 @@ public class Staff {
 
     @Column(name = "LeaveBalance")
     private Integer leaveBalance;
+
+    @Column(name = "DocumentFolder", length = 255)
+    private String documentFolder;
 }

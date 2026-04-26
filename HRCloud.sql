@@ -8,7 +8,8 @@ CREATE TABLE Staff (
     Name VARCHAR(100),
     ManagerID INT,
     Salary INT,
-    LeaveBalance INT
+    LeaveBalance INT,
+    DocumentFolder VARCHAR(255)
 );
 
 Go
@@ -21,12 +22,12 @@ CREATE TABLE LeaveRecords (
 );
 
 Go
-INSERT INTO Staff VALUES (1,'CEO',NULL,10000,30);
-INSERT INTO Staff VALUES (2,'Manager A',1,7000,20);
-INSERT INTO Staff VALUES (3,'Manager B',1,7000,20);
-INSERT INTO Staff VALUES (4,'Employee A',2,4000,15);
-INSERT INTO Staff VALUES (5,'Employee B',2,4000,15);
-INSERT INTO Staff VALUES (6,'Employee C',3,4000,15);
+INSERT INTO Staff VALUES (1,'CEO',NULL,10000,30, '/uploads/staffs/staff_1/');
+INSERT INTO Staff VALUES (2,'Manager A',1,7000,20, '/uploads/staffs/staff_2/');
+INSERT INTO Staff VALUES (3,'Manager B',1,7000,20, '/uploads/staffs/staff_3/');
+INSERT INTO Staff VALUES (4,'Employee A',2,4000,15, '/uploads/staffs/staff_4/');
+INSERT INTO Staff VALUES (5,'Employee B',2,4000,15, '/uploads/staffs/staff_5/');
+INSERT INTO Staff VALUES (6,'Employee C',3,4000,15, '/uploads/staffs/staff_6/');
 
 Go
 WITH OrgChart AS (

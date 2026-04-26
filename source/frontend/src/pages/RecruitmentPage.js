@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { recruitService } from '../services/api';
 
 const STATUS_COLORS = {
@@ -116,6 +116,11 @@ export default function RecruitmentPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [searchParams, setSearchParams] = useState({ skills: [], minExp: '', position: '' });
+  
+  // AI Progress states
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, filename: '' });
+  const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
     fullName: '', email: '', phone: '', position: '',
@@ -198,6 +203,35 @@ export default function RecruitmentPage() {
     }
   };
 
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    setUploadingFiles(true);
+    setUploadProgress({ current: 0, total: files.length, filename: '' });
+    
+    let successCount = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress({ current: i + 1, total: files.length, filename: file.name });
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        await recruitService.uploadCv(formData);
+        successCount++;
+      } catch (err) {
+        console.error('Lỗi upload file: ', file.name, err);
+      }
+    }
+    
+    setUploadingFiles(false);
+    setMessage({ type: 'success', text: `Đã import và phân tích thành công ${successCount}/${files.length} hồ sơ` });
+    fetchAll();
+    
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -260,10 +294,50 @@ export default function RecruitmentPage() {
           </div>
         )}
 
+        {/* AI Learning Progress Box */}
+        {uploadingFiles && (
+          <div className="card mb-4" style={{ border: '2px solid var(--primary)', background: 'rgba(99,102,241,0.05)' }}>
+            <div className="card-body" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div className="spinner" style={{ width: 30, height: 30, borderWidth: 3 }}></div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>🤖 AI đang học CV: {uploadProgress.current}/{uploadProgress.total} file...</h4>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Đang phân tích: <strong>{uploadProgress.filename}</strong></div>
+                <div style={{ background: 'var(--border)', height: 6, borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
+                  <div style={{ 
+                    background: 'var(--primary)', 
+                    height: '100%', 
+                    width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                    transition: 'width 0.3s ease'
+                  }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search - MongoDB Aggregation Pipeline */}
         <div className="card mb-4">
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="card-title">🔍 Tìm kiếm (MongoDB Aggregation Pipeline)</h3>
+            
+            {/* Import PDF Button */}
+            <div>
+              <input 
+                type="file" 
+                multiple 
+                accept=".pdf" 
+                ref={fileInputRef} 
+                onChange={handleFileSelect} 
+                style={{ display: 'none' }} 
+              />
+              <button 
+                className="btn btn-outline" 
+                style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              >
+                📥 Import Hồ Sơ (PDF)
+              </button>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="form-group" style={{ flex: 2, minWidth: 220, marginBottom: 0 }}>
@@ -410,9 +484,18 @@ export default function RecruitmentPage() {
                   />
                 </div>
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label">CV / Hồ sơ URL</label>
-                  <input className="form-input" type="text" value={form.cvUrl}
-                    onChange={e => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://..." />
+                  <label className="form-label">Hồ sơ đính kèm</label>
+                  {form.cvUrl ? (
+                    <div>
+                      <a href={form.cvUrl} target="_blank" rel="noreferrer" className="badge badge-success" style={{ padding: '8px 12px', fontSize: 13, textDecoration: 'none' }}>
+                        📄 Đã có CV (Nhấn để xem)
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>
+                      <em>Chưa có CV. Vui lòng dùng nút "Import Hồ Sơ (PDF)" ở ngoài màn hình chính để AI tự động trích xuất.</em>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2 mt-4">

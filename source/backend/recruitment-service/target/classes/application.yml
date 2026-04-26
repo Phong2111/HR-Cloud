@@ -17,3 +17,8 @@ logging:
   level:
     com.hrcloud: DEBUG
     org.springframework.data.mongodb: DEBUG
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent

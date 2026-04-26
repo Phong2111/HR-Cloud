@@ -65,4 +65,12 @@ export const recruitService = {
   deleteCandidate: (id) => recruitApi.delete(`/api/candidates/${id}`),
   searchCandidates: (params) =>
     recruitApi.get('/api/candidates/search', { params }),
+  uploadCv: (formData) =>
+    recruitApi.post('/api/candidates/upload-cv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  uploadBatchCv: (formData) =>
+    recruitApi.post('/api/candidates/upload-batch-cv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };

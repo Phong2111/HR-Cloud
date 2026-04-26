@@ -14,13 +14,13 @@ public interface StaffRepository extends JpaRepository<Staff, Integer> {
      */
     @Query(value = """
             WITH OrgChart AS (
-                SELECT ID, Name, ManagerID, Salary, LeaveBalance, 0 AS Level
+                SELECT ID, Name, ManagerID, Salary, LeaveBalance, DocumentFolder, 0 AS Level
                 FROM Staff
                 WHERE ManagerID IS NULL
                 
                 UNION ALL
                 
-                SELECT s.ID, s.Name, s.ManagerID, s.Salary, s.LeaveBalance, o.Level + 1
+                SELECT s.ID, s.Name, s.ManagerID, s.Salary, s.LeaveBalance, s.DocumentFolder, o.Level + 1
                 FROM Staff s
                 JOIN OrgChart o ON s.ManagerID = o.ID
             )

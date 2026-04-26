@@ -127,6 +127,7 @@ services:
       - "8084:8084"
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/hrcloud_recruitment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       mongodb:
         condition: service_healthy

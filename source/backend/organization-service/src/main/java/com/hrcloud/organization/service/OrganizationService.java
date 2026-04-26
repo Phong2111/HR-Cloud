@@ -37,6 +37,7 @@ public class OrganizationService {
                 .managerId(request.getManagerId())
                 .salary(request.getSalary())
                 .leaveBalance(request.getLeaveBalance())
+                .documentFolder(request.getDocumentFolder())
                 .build();
         return staffRepository.save(staff);
     }
@@ -48,6 +49,7 @@ public class OrganizationService {
         staff.setManagerId(request.getManagerId());
         staff.setSalary(request.getSalary());
         staff.setLeaveBalance(request.getLeaveBalance());
+        staff.setDocumentFolder(request.getDocumentFolder());
         return staffRepository.save(staff);
     }
 
@@ -80,7 +82,8 @@ public class OrganizationService {
             map.put("managerId", row[2]);
             map.put("salary", row[3]);
             map.put("leaveBalance", row[4]);
-            map.put("level", row[5]);
+            map.put("documentFolder", row[5]);
+            map.put("level", row[6]);
             result.add(map);
         }
         return result;
@@ -95,6 +98,7 @@ public class OrganizationService {
                         .managerId(s.getManagerId())
                         .salary(s.getSalary())
                         .leaveBalance(s.getLeaveBalance())
+                        .documentFolder(s.getDocumentFolder())
                         .level(level)
                         .children(buildTree(all, s.getId(), level + 1))
                         .build())

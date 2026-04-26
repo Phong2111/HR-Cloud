@@ -17,6 +17,7 @@ public class OrgChartNode {
     private Integer managerId;
     private Integer salary;
     private Integer leaveBalance;
+    private String documentFolder;
     private int level;
     private List<OrgChartNode> children;
 }
