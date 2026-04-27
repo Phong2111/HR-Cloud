@@ -22,5 +22,9 @@ public class StaffRequest {
     @Min(value = 0, message = "Leave balance must be non-negative")
     private Integer leaveBalance = 15;
 
+    private String department;
+
+    private String roleTitle;
+
     private String documentFolder;
 }

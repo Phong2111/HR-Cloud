@@ -22,19 +22,58 @@ BEGIN
         Name VARCHAR(100),
         ManagerID INT,
         Salary INT,
-        LeaveBalance INT
+        LeaveBalance INT,
+        Department VARCHAR(100),
+        RoleTitle VARCHAR(100),
+        DocumentFolder VARCHAR(255)
     );
 
     -- Seed data from HRCloud.sql
-    INSERT INTO Staff VALUES (1, 'CEO', NULL, 10000, 30);
-    INSERT INTO Staff VALUES (2, 'Manager A', 1, 7000, 20);
-    INSERT INTO Staff VALUES (3, 'Manager B', 1, 7000, 20);
-    INSERT INTO Staff VALUES (4, 'Employee A', 2, 4000, 15);
-    INSERT INTO Staff VALUES (5, 'Employee B', 2, 4000, 15);
-    INSERT INTO Staff VALUES (6, 'Employee C', 3, 4000, 15);
+    INSERT INTO Staff VALUES (1, 'CEO', NULL, 10000, 30, 'Executive', 'Chief Executive Officer', '/uploads/staffs/staff_1/');
+    INSERT INTO Staff VALUES (2, 'Manager A', 1, 7000, 20, 'Engineering', 'Engineering Manager', '/uploads/staffs/staff_2/');
+    INSERT INTO Staff VALUES (3, 'Manager B', 1, 7000, 20, 'Human Resources', 'HR Manager', '/uploads/staffs/staff_3/');
+    INSERT INTO Staff VALUES (4, 'Employee A', 2, 4000, 15, 'Engineering', 'Backend Developer', '/uploads/staffs/staff_4/');
+    INSERT INTO Staff VALUES (5, 'Employee B', 2, 4000, 15, 'Engineering', 'Frontend Developer', '/uploads/staffs/staff_5/');
+    INSERT INTO Staff VALUES (6, 'Employee C', 3, 4000, 15, 'Human Resources', 'Talent Acquisition Executive', '/uploads/staffs/staff_6/');
 
     PRINT 'Staff table created and seeded.';
 END
+GO
+
+IF COL_LENGTH('Staff', 'Department') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD Department VARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'RoleTitle') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD RoleTitle VARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'DocumentFolder') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD DocumentFolder VARCHAR(255) NULL;
+END
+GO
+
+UPDATE Staff
+SET Department = CASE
+    WHEN ManagerID IS NULL THEN 'Executive'
+    WHEN ManagerID = 1 THEN 'Engineering'
+    ELSE 'General'
+END
+WHERE Department IS NULL;
+GO
+
+UPDATE Staff
+SET RoleTitle = CASE
+    WHEN ManagerID IS NULL THEN 'Chief Executive Officer'
+    WHEN ManagerID = 1 THEN 'Department Manager'
+    ELSE 'Staff'
+END
+WHERE RoleTitle IS NULL;
 GO
 
 -- ─── LeaveRecords table ────────────────────────────────────────────

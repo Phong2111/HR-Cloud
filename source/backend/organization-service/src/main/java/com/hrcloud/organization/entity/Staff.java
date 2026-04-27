@@ -30,6 +30,12 @@ public class Staff {
     @Column(name = "LeaveBalance")
     private Integer leaveBalance;
 
+    @Column(name = "Department", length = 100)
+    private String department;
+
+    @Column(name = "RoleTitle", length = 100)
+    private String roleTitle;
+
     @Column(name = "DocumentFolder", length = 255)
     private String documentFolder;
 }

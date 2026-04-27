@@ -128,6 +128,12 @@ services:
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/hrcloud_recruitment
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ledoananhhao2020@gmail.com
+      MAIL_PASSWORD: utjplfvcshiszbkn
+      MAIL_FROM: ${MAIL_FROM:-no-reply@hrcloud.local}
     depends_on:
       mongodb:
         condition: service_healthy

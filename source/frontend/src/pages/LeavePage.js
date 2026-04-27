@@ -14,6 +14,7 @@ export default function LeavePage() {
   const [historyStaffId, setHistoryStaffId] = useState('');
   const [staffHistory, setStaffHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [daysLog, setDaysLog] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -33,8 +34,48 @@ export default function LeavePage() {
     }
   };
 
+  const validateRequestedDays = (staffIdValue, daysValue) => {
+    if (!daysValue) return null;
+    const parsed = parseInt(daysValue, 10);
+
+    if (Number.isNaN(parsed)) {
+      return { type: 'error', text: 'Số ngày nghỉ không hợp lệ' };
+    }
+    if (parsed <= 0) {
+      return { type: 'error', text: 'Số ngày nghỉ phải lớn hơn 0' };
+    }
+    if (parsed > 30) {
+      return { type: 'error', text: 'Một yêu cầu không thể vượt quá 30 ngày' };
+    }
+
+    if (staffIdValue) {
+      const selectedStaff = staff.find((s) => String(s.id) === String(staffIdValue));
+      if (selectedStaff && parsed > selectedStaff.leaveBalance) {
+        return {
+          type: 'error',
+          text: `Nhập ${parsed} ngày vượt quá ngày phép còn lại (${selectedStaff.leaveBalance} ngày)`,
+        };
+      }
+      if (selectedStaff && parsed > 10) {
+        return {
+          type: 'warn',
+          text: `Yêu cầu ${parsed} ngày là khá dài, vui lòng kiểm tra lại trước khi gửi`,
+        };
+      }
+    }
+
+    return { type: 'ok', text: `Số ngày nghỉ hợp lệ: ${parsed} ngày` };
+  };
+
   const handleRequest = async (e) => {
     e.preventDefault();
+    const validation = validateRequestedDays(form.staffId, form.days);
+    setDaysLog(validation);
+    if (!validation || validation.type === 'error') {
+      setResult({ status: 'Error', message: validation?.text || 'Vui lòng nhập số ngày nghỉ hợp lệ' });
+      return;
+    }
+
     setSubmitting(true);
     setResult(null);
     try {
@@ -106,7 +147,11 @@ export default function LeavePage() {
               <div className="form-group">
                 <label className="form-label">Nhân viên *</label>
                 <select className="form-input" value={form.staffId}
-                  onChange={e => setForm({ ...form, staffId: e.target.value })} required>
+                  onChange={e => {
+                    const nextStaffId = e.target.value;
+                    setForm({ ...form, staffId: nextStaffId });
+                    setDaysLog(validateRequestedDays(nextStaffId, form.days));
+                  }} required>
                   <option value="">-- Chọn nhân viên --</option>
                   {staff.map(s => (
                     <option key={s.id} value={s.id}>
@@ -118,9 +163,19 @@ export default function LeavePage() {
               <div className="form-group">
                 <label className="form-label">Số ngày nghỉ *</label>
                 <input className="form-input" type="number" min="1" max="30"
-                  value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
+                  value={form.days}
+                  onChange={e => {
+                    const nextDays = e.target.value;
+                    setForm({ ...form, days: nextDays });
+                    setDaysLog(validateRequestedDays(form.staffId, nextDays));
+                  }}
                   required placeholder="VD: 5" />
               </div>
+              {daysLog && (
+                <div className={`alert mb-4 ${daysLog.type === 'error' ? 'alert-error' : 'alert-success'}`}>
+                  {daysLog.text}
+                </div>
+              )}
               <button type="submit" className="btn btn-primary" disabled={submitting} id="btn-request-leave">
                 {submitting ? '⏳ Đang xử lý...' : '📨 Gửi yêu cầu'}
               </button>

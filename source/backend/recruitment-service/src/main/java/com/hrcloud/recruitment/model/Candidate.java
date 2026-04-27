@@ -28,6 +28,7 @@ public class Candidate {
     private String fullName;
     private String email;
     private String phone;
+    private String industry;        // e.g. Technology, Finance, Healthcare
     private String position;        // Desired position
 
     private Integer yearsExperience;
@@ -42,9 +43,17 @@ public class Candidate {
 
     private String status;          // PENDING, INTERVIEWING, HIRED, REJECTED
 
+    private String assignedDepartment;
+
+    private String assignedRole;
+
+    private Integer assignedManagerId;
+
     private String cvUrl;
 
     private LocalDateTime appliedAt;
+
+    private LocalDateTime statusChangedAt;
 
     @Data
     @Builder

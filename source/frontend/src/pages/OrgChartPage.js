@@ -19,7 +19,10 @@ function OrgNode({ node, level = 0 }) {
         <div>
           <div style={{ fontWeight: 700, fontSize: 13 }}>{node.name}</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            ID: {node.id} · Lương: {node.salary?.toLocaleString()} · Nghỉ phép: {node.leaveBalance} ngày
+            ID: {node.id} · {node.department || 'General'} · {node.roleTitle || 'Staff'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            Lương: {node.salary?.toLocaleString()} · Nghỉ phép: {node.leaveBalance} ngày
           </div>
         </div>
         <span className="badge" style={{ marginLeft: 'auto', background: `${color}20`, color }}>
@@ -41,28 +44,56 @@ export default function OrgChartPage() {
   const [orgChart, setOrgChart] = useState([]);
   const [flatChart, setFlatChart] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [allStaff, setAllStaff] = useState([]);
+  const [hierarchyDraft, setHierarchyDraft] = useState({});
+  const [savingHierarchyId, setSavingHierarchyId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [message, setMessage] = useState(null);
-  const [form, setForm] = useState({ id: '', name: '', managerId: '', salary: '', leaveBalance: 15 });
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [rootFilter, setRootFilter] = useState('');
+  const [form, setForm] = useState({
+    id: '',
+    name: '',
+    managerId: '',
+    salary: '',
+    leaveBalance: 15,
+    department: '',
+    roleTitle: '',
+  });
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [departmentFilter, rootFilter]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [chartRes, flatRes, staffRes] = await Promise.all([
-        orgService.getOrgChart(),
-        orgService.getOrgChartFlat(),
+      const params = {};
+      if (departmentFilter) params.department = departmentFilter;
+      if (rootFilter) params.rootId = parseInt(rootFilter, 10);
+
+      const [allStaffRes, chartRes, flatRes, staffRes] = await Promise.all([
         orgService.getStaff(),
+        orgService.getOrgChart(params),
+        orgService.getOrgChartFlat(params),
+        orgService.getStaff(departmentFilter ? { department: departmentFilter } : undefined),
       ]);
+
+      const subtreeIds = new Set((flatRes.data || []).map((node) => node.id));
+      const visibleStaff = rootFilter
+        ? (staffRes.data || []).filter((member) => subtreeIds.has(member.id))
+        : (staffRes.data || []);
+
+      setAllStaff(allStaffRes.data || []);
       setOrgChart(chartRes.data);
       setFlatChart(flatRes.data);
-      setStaff(staffRes.data);
+      setStaff(visibleStaff);
+      setHierarchyDraft(Object.fromEntries(
+        (flatRes.data || []).map((node) => [node.id, node.managerId == null ? '' : String(node.managerId)]),
+      ));
     } catch (error) {
       setMessage({ type: 'error', text: 'Không thể tải dữ liệu tổ chức' });
     } finally {
@@ -71,7 +102,15 @@ export default function OrgChartPage() {
   };
 
   const resetForm = () => {
-    setForm({ id: '', name: '', managerId: '', salary: '', leaveBalance: 15 });
+    setForm({
+      id: '',
+      name: '',
+      managerId: '',
+      salary: '',
+      leaveBalance: 15,
+      department: departmentFilter || '',
+      roleTitle: '',
+    });
   };
 
   const openCreateModal = () => {
@@ -91,6 +130,8 @@ export default function OrgChartPage() {
         managerId: staffData.managerId ?? '',
         salary: staffData.salary ?? '',
         leaveBalance: staffData.leaveBalance ?? 15,
+        department: staffData.department || '',
+        roleTitle: staffData.roleTitle || '',
       });
       setModalMode('edit');
       setShowModal(true);
@@ -118,6 +159,8 @@ export default function OrgChartPage() {
         managerId: form.managerId ? parseInt(form.managerId) : null,
         salary: parseInt(form.salary),
         leaveBalance: parseInt(form.leaveBalance),
+        department: form.department || 'General',
+        roleTitle: form.roleTitle || 'Staff',
       };
 
       if (modalMode === 'edit') {
@@ -133,6 +176,57 @@ export default function OrgChartPage() {
       fetchData();
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.error || 'Lỗi khi lưu nhân viên' });
+    }
+  };
+
+  const departmentOptions = Array.from(
+    new Set(allStaff.map((member) => member.department).filter(Boolean)),
+  ).sort();
+
+  const branchRoots = allStaff.filter(
+    (member) => !departmentFilter || member.department === departmentFilter,
+  );
+
+  const managerOptions = allStaff.filter((member) => {
+    const notSelf = String(member.id) !== String(form.id);
+    const sameDepartment = !form.department || member.department === form.department;
+    return notSelf && sameDepartment;
+  });
+
+  const saveHierarchy = async (node) => {
+    const draftValue = hierarchyDraft[node.id];
+    const newManagerId = draftValue === '' || draftValue == null ? null : parseInt(draftValue, 10);
+    const oldManagerId = node.managerId == null ? null : node.managerId;
+
+    if (newManagerId === node.id) {
+      setMessage({ type: 'error', text: 'Nhân viên không thể tự quản lý chính mình' });
+      return;
+    }
+
+    if (newManagerId === oldManagerId) {
+      setMessage({ type: 'success', text: 'Không có thay đổi phân cấp để lưu' });
+      return;
+    }
+
+    setSavingHierarchyId(node.id);
+    try {
+      const payload = {
+        id: node.id,
+        name: node.name,
+        managerId: newManagerId,
+        salary: node.salary,
+        leaveBalance: node.leaveBalance,
+        department: node.department || 'General',
+        roleTitle: node.roleTitle || 'Staff',
+        documentFolder: node.documentFolder || null,
+      };
+      await orgService.updateStaff(node.id, payload);
+      setMessage({ type: 'success', text: `Đã cập nhật phân cấp cho ${node.name}` });
+      await fetchData();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'Không thể cập nhật phân cấp' });
+    } finally {
+      setSavingHierarchyId(null);
     }
   };
 
@@ -153,6 +247,58 @@ export default function OrgChartPage() {
             {message.text}
           </div>
         )}
+
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <h3 className="card-title">🧭 Bộ lọc sơ đồ theo phòng ban và nhánh</h3>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <div className="form-group" style={{ minWidth: 220, marginBottom: 0 }}>
+              <label className="form-label">Phòng ban</label>
+              <select
+                className="form-input"
+                value={departmentFilter}
+                onChange={(e) => {
+                  setDepartmentFilter(e.target.value);
+                  setRootFilter('');
+                }}
+              >
+                <option value="">-- Toàn công ty --</option>
+                {departmentOptions.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ minWidth: 260, marginBottom: 0 }}>
+              <label className="form-label">Nhánh nhỏ (gốc quản lý)</label>
+              <select
+                className="form-input"
+                value={rootFilter}
+                onChange={(e) => setRootFilter(e.target.value)}
+              >
+                <option value="">-- Toàn bộ trong bộ lọc hiện tại --</option>
+                {branchRoots.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} (#{member.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => {
+                  setDepartmentFilter('');
+                  setRootFilter('');
+                }}
+              >
+                ↺ Xóa lọc
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div className="grid-2">
           <div className="card" style={{ gridColumn: 'span 2' }}>
@@ -189,6 +335,9 @@ export default function OrgChartPage() {
                     <th>ID</th>
                     <th>Tên</th>
                     <th>Quản lý</th>
+                    <th>Phòng ban</th>
+                    <th>Vai trò</th>
+                    <th>Sửa phân cấp</th>
                     <th>Lương</th>
                     <th>Ngày phép còn</th>
                     <th>Cấp</th>
@@ -200,6 +349,34 @@ export default function OrgChartPage() {
                       <td>#{node.id}</td>
                       <td>{node.name}</td>
                       <td>{node.managerId ?? 'CEO'}</td>
+                      <td>{node.department || 'General'}</td>
+                      <td>{node.roleTitle || 'Staff'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <select
+                            className="form-input"
+                            style={{ minWidth: 170, padding: '4px 8px' }}
+                            value={hierarchyDraft[node.id] ?? ''}
+                            onChange={(e) => setHierarchyDraft({ ...hierarchyDraft, [node.id]: e.target.value })}
+                          >
+                            <option value="">CEO</option>
+                            {allStaff
+                              .filter((member) => member.id !== node.id)
+                              .map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.name} (#{member.id})
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            disabled={savingHierarchyId === node.id}
+                            onClick={() => saveHierarchy(node)}
+                          >
+                            {savingHierarchyId === node.id ? 'Đang lưu...' : 'Lưu'}
+                          </button>
+                        </div>
+                      </td>
                       <td>{node.salary?.toLocaleString()} VNĐ</td>
                       <td>{node.leaveBalance} ngày</td>
                       <td>{node.level}</td>
@@ -221,6 +398,8 @@ export default function OrgChartPage() {
                     <th>ID</th>
                     <th>Tên</th>
                     <th>Quản lý</th>
+                    <th>Phòng ban</th>
+                    <th>Vai trò</th>
                     <th>Lương</th>
                     <th>Ngày phép còn</th>
                     <th>Thao tác</th>
@@ -228,7 +407,7 @@ export default function OrgChartPage() {
                 </thead>
                 <tbody>
                   {staff.map((s) => {
-                    const manager = staff.find((m) => m.id === s.managerId);
+                    const manager = allStaff.find((m) => m.id === s.managerId);
                     return (
                       <tr key={s.id}>
                         <td><span className="badge badge-purple">#{s.id}</span></td>
@@ -241,6 +420,8 @@ export default function OrgChartPage() {
                           </strong>
                         </td>
                         <td>{manager ? manager.name : <span className="badge badge-info">CEO</span>}</td>
+                        <td>{s.department || 'General'}</td>
+                        <td>{s.roleTitle || 'Staff'}</td>
                         <td>{s.salary?.toLocaleString()} VNĐ</td>
                         <td>
                           <span className={`badge ${s.leaveBalance > 10 ? 'badge-success' : s.leaveBalance > 5 ? 'badge-warning' : 'badge-danger'}`}>
@@ -259,8 +440,15 @@ export default function OrgChartPage() {
                             className="btn btn-danger btn-sm"
                             onClick={async () => {
                               if (window.confirm(`Xóa nhân viên ${s.name}?`)) {
-                                await orgService.deleteStaff(s.id);
-                                fetchData();
+                                try {
+                                  await orgService.deleteStaff(s.id);
+                                  fetchData();
+                                } catch (error) {
+                                  setMessage({
+                                    type: 'error',
+                                    text: error.response?.data?.error || 'Không thể xóa nhân viên',
+                                  });
+                                }
                               }
                             }}
                           >
@@ -287,7 +475,9 @@ export default function OrgChartPage() {
             <div style={{ display: 'grid', gap: 10 }}>
               <p><strong>ID:</strong> #{selectedStaff.id}</p>
               <p><strong>Tên:</strong> {selectedStaff.name}</p>
-              <p><strong>Quản lý:</strong> {staff.find((m) => m.id === selectedStaff.managerId)?.name || 'CEO'}</p>
+              <p><strong>Quản lý:</strong> {allStaff.find((m) => m.id === selectedStaff.managerId)?.name || 'CEO'}</p>
+              <p><strong>Phòng ban:</strong> {selectedStaff.department || 'General'}</p>
+              <p><strong>Vai trò:</strong> {selectedStaff.roleTitle || 'Staff'}</p>
               <p><strong>Lương:</strong> {selectedStaff.salary?.toLocaleString()} VNĐ</p>
               <p><strong>Ngày phép còn:</strong> {selectedStaff.leaveBalance} ngày</p>
             </div>
@@ -348,7 +538,7 @@ export default function OrgChartPage() {
                     onChange={(e) => setForm({ ...form, managerId: e.target.value })}
                   >
                     <option value="">-- Cấp cao nhất (CEO) --</option>
-                    {staff.map((s) => <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>)}
+                    {managerOptions.map((s) => <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -368,6 +558,26 @@ export default function OrgChartPage() {
                     type="number"
                     value={form.leaveBalance}
                     onChange={(e) => setForm({ ...form, leaveBalance: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Phòng ban *</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={form.department}
+                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Vai trò *</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={form.roleTitle}
+                    onChange={(e) => setForm({ ...form, roleTitle: e.target.value })}
+                    required
                   />
                 </div>
               </div>

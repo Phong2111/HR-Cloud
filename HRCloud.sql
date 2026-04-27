@@ -9,6 +9,8 @@ CREATE TABLE Staff (
     ManagerID INT,
     Salary INT,
     LeaveBalance INT,
+    Department VARCHAR(100),
+    RoleTitle VARCHAR(100),
     DocumentFolder VARCHAR(255)
 );
 
@@ -22,12 +24,12 @@ CREATE TABLE LeaveRecords (
 );
 
 Go
-INSERT INTO Staff VALUES (1,'CEO',NULL,10000,30, '/uploads/staffs/staff_1/');
-INSERT INTO Staff VALUES (2,'Manager A',1,7000,20, '/uploads/staffs/staff_2/');
-INSERT INTO Staff VALUES (3,'Manager B',1,7000,20, '/uploads/staffs/staff_3/');
-INSERT INTO Staff VALUES (4,'Employee A',2,4000,15, '/uploads/staffs/staff_4/');
-INSERT INTO Staff VALUES (5,'Employee B',2,4000,15, '/uploads/staffs/staff_5/');
-INSERT INTO Staff VALUES (6,'Employee C',3,4000,15, '/uploads/staffs/staff_6/');
+INSERT INTO Staff VALUES (1,'CEO',NULL,10000,30,'Executive','Chief Executive Officer','/uploads/staffs/staff_1/');
+INSERT INTO Staff VALUES (2,'Manager A',1,7000,20,'Engineering','Engineering Manager','/uploads/staffs/staff_2/');
+INSERT INTO Staff VALUES (3,'Manager B',1,7000,20,'Human Resources','HR Manager','/uploads/staffs/staff_3/');
+INSERT INTO Staff VALUES (4,'Employee A',2,4000,15,'Engineering','Backend Developer','/uploads/staffs/staff_4/');
+INSERT INTO Staff VALUES (5,'Employee B',2,4000,15,'Engineering','Frontend Developer','/uploads/staffs/staff_5/');
+INSERT INTO Staff VALUES (6,'Employee C',3,4000,15,'Human Resources','Talent Acquisition Executive','/uploads/staffs/staff_6/');
 
 Go
 WITH OrgChart AS (

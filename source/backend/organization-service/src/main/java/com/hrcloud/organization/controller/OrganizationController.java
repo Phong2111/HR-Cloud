@@ -23,8 +23,8 @@ public class OrganizationController {
     // ─── Staff CRUD ───────────────────────────────────────────────
 
     @GetMapping("/staff")
-    public ResponseEntity<List<Staff>> getAllStaff() {
-        return ResponseEntity.ok(organizationService.getAllStaff());
+    public ResponseEntity<List<Staff>> getAllStaff(@RequestParam(required = false) String department) {
+        return ResponseEntity.ok(organizationService.getAllStaff(department));
     }
 
     @GetMapping("/staff/{id}")
@@ -56,16 +56,20 @@ public class OrganizationController {
      * Uses Java-side tree builder from full staff list.
      */
     @GetMapping("/org-chart")
-    public ResponseEntity<List<OrgChartNode>> getOrgChart() {
-        return ResponseEntity.ok(organizationService.getOrgChart());
+    public ResponseEntity<List<OrgChartNode>> getOrgChart(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer rootId) {
+        return ResponseEntity.ok(organizationService.getOrgChart(department, rootId));
     }
 
     /**
      * Returns flat org chart list ordered by level (direct from Recursive CTE).
      */
     @GetMapping("/org-chart/flat")
-    public ResponseEntity<List<Map<String, Object>>> getOrgChartFlat() {
-        return ResponseEntity.ok(organizationService.getOrgChartFlat());
+    public ResponseEntity<List<Map<String, Object>>> getOrgChartFlat(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer rootId) {
+        return ResponseEntity.ok(organizationService.getOrgChartFlat(department, rootId));
     }
 
     // ─── Dashboard Stats ──────────────────────────────────────────

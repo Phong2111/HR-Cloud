@@ -32,13 +32,13 @@ export const authService = {
 
 // ─── Organization ─────────────────────────────────────────────────
 export const orgService = {
-  getStaff: () => orgApi.get('/api/staff'),
+  getStaff: (params) => orgApi.get('/api/staff', { params }),
   getStaffById: (id) => orgApi.get(`/api/staff/${id}`),
   createStaff: (data) => orgApi.post('/api/staff', data),
   updateStaff: (id, data) => orgApi.put(`/api/staff/${id}`, data),
   deleteStaff: (id) => orgApi.delete(`/api/staff/${id}`),
-  getOrgChart: () => orgApi.get('/api/org-chart'),
-  getOrgChartFlat: () => orgApi.get('/api/org-chart/flat'),
+  getOrgChart: (params) => orgApi.get('/api/org-chart', { params }),
+  getOrgChartFlat: (params) => orgApi.get('/api/org-chart/flat', { params }),
   getDashboardStats: () => orgApi.get('/api/dashboard/stats'),
 };
 
@@ -60,8 +60,10 @@ export const recruitService = {
   getCandidateById: (id) => recruitApi.get(`/api/candidates/${id}`),
   createCandidate: (data) => recruitApi.post('/api/candidates', data),
   updateCandidate: (id, data) => recruitApi.put(`/api/candidates/${id}`, data),
-  updateStatus: (id, status) =>
-    recruitApi.patch(`/api/candidates/${id}/status?status=${status}`),
+  updateStatus: (id, status, extraParams = {}) =>
+    recruitApi.patch(`/api/candidates/${id}/status`, null, {
+      params: { status, ...extraParams },
+    }),
   deleteCandidate: (id) => recruitApi.delete(`/api/candidates/${id}`),
   searchCandidates: (params) =>
     recruitApi.get('/api/candidates/search', { params }),

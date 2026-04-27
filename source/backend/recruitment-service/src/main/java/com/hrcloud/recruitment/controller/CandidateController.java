@@ -48,8 +48,11 @@ public class CandidateController {
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<Candidate> updateStatus(@PathVariable String id,
-                                                   @RequestParam String status) {
-        return ResponseEntity.ok(candidateService.updateStatus(id, status));
+                                                   @RequestParam String status,
+                                                   @RequestParam(required = false) String assignedRole,
+                                                   @RequestParam(required = false) String assignedDepartment,
+                                                   @RequestParam(required = false) Integer assignedManagerId) {
+        return ResponseEntity.ok(candidateService.updateStatus(id, status, assignedRole, assignedDepartment, assignedManagerId));
     }
 
     @DeleteMapping("/{id}")
@@ -67,8 +70,12 @@ public class CandidateController {
     public ResponseEntity<List<Candidate>> searchCandidates(
             @RequestParam(required = false) List<String> skills,
             @RequestParam(required = false) Integer minExp,
-            @RequestParam(required = false) String position) {
-        return ResponseEntity.ok(candidateService.searchCandidates(skills, minExp, position));
+            @RequestParam(required = false) String position,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String industry,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String roleKeyword) {
+        return ResponseEntity.ok(candidateService.searchCandidates(skills, minExp, position, status, industry, department, roleKeyword));
     }
 
     @PostMapping("/upload-cv")

@@ -15,12 +15,16 @@ public class CandidateRequest {
     private String fullName;
     private String email;
     private String phone;
+    private String industry;
     private String position;
     private Integer yearsExperience;
     private List<String> skills;
     private List<ProjectDto> projects;
     private List<WorkExperienceDto> workExperiences;
     private List<String> certifications;
+    private String assignedDepartment;
+    private String assignedRole;
+    private Integer assignedManagerId;
     private String cvUrl;
 
     @Data

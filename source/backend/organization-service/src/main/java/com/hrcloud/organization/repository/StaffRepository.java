@@ -14,19 +14,21 @@ public interface StaffRepository extends JpaRepository<Staff, Integer> {
      */
     @Query(value = """
             WITH OrgChart AS (
-                SELECT ID, Name, ManagerID, Salary, LeaveBalance, DocumentFolder, 0 AS Level
+                SELECT ID, Name, ManagerID, Salary, LeaveBalance, Department, RoleTitle, DocumentFolder, 0 AS Level
                 FROM Staff
                 WHERE ManagerID IS NULL
                 
                 UNION ALL
                 
-                SELECT s.ID, s.Name, s.ManagerID, s.Salary, s.LeaveBalance, s.DocumentFolder, o.Level + 1
+                SELECT s.ID, s.Name, s.ManagerID, s.Salary, s.LeaveBalance, s.Department, s.RoleTitle, s.DocumentFolder, o.Level + 1
                 FROM Staff s
                 JOIN OrgChart o ON s.ManagerID = o.ID
             )
             SELECT * FROM OrgChart ORDER BY Level, ManagerID, ID
             """, nativeQuery = true)
     List<Object[]> findOrgChartFlat();
+
+    List<Staff> findByDepartmentIgnoreCase(String department);
 
     List<Staff> findByManagerId(Integer managerId);
 

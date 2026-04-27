@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,11 +22,15 @@ public class CandidateService {
 
     private final CandidateRepository candidateRepository;
     private final MongoTemplate mongoTemplate;
+    private final CandidateEmailService candidateEmailService;
+
+    private static final Set<String> VALID_STATUSES = Set.of("PENDING", "INTERVIEWING", "HIRED", "REJECTED");
 
     public Candidate createCandidate(CandidateRequest request) {
         Candidate candidate = mapToCandidate(request);
         candidate.setStatus("PENDING");
         candidate.setAppliedAt(LocalDateTime.now());
+        candidate.setStatusChangedAt(LocalDateTime.now());
         return candidateRepository.save(candidate);
     }
 
@@ -43,13 +49,36 @@ public class CandidateService {
         updated.setId(id);
         updated.setStatus(existing.getStatus());
         updated.setAppliedAt(existing.getAppliedAt());
+        updated.setStatusChangedAt(existing.getStatusChangedAt());
         return candidateRepository.save(updated);
     }
 
-    public Candidate updateStatus(String id, String status) {
+    public Candidate updateStatus(String id,
+                                  String status,
+                                  String assignedRole,
+                                  String assignedDepartment,
+                                  Integer assignedManagerId) {
+        String normalizedStatus = normalizeStatus(status);
         Candidate candidate = getCandidateById(id);
-        candidate.setStatus(status);
-        return candidateRepository.save(candidate);
+
+        if ("HIRED".equals(normalizedStatus)) {
+            if (assignedRole == null || assignedRole.isBlank()) {
+                throw new RuntimeException("assignedRole is required when status is HIRED");
+            }
+            if (assignedDepartment == null || assignedDepartment.isBlank()) {
+                throw new RuntimeException("assignedDepartment is required when status is HIRED");
+            }
+            candidate.setAssignedRole(assignedRole.trim());
+            candidate.setAssignedDepartment(assignedDepartment.trim());
+            candidate.setAssignedManagerId(assignedManagerId);
+        }
+
+        candidate.setStatus(normalizedStatus);
+        candidate.setStatusChangedAt(LocalDateTime.now());
+
+        Candidate saved = candidateRepository.save(candidate);
+        candidateEmailService.sendStatusChangeEmail(saved);
+        return saved;
     }
 
     public void deleteCandidate(String id) {
@@ -64,7 +93,13 @@ public class CandidateService {
      * Filters by: skills (array contains), minimumYearsExperience, position keyword.
      * Demonstrates the Aggregation Pipeline as described in project requirements.
      */
-    public List<Candidate> searchCandidates(List<String> skills, Integer minExp, String position) {
+    public List<Candidate> searchCandidates(List<String> skills,
+                                            Integer minExp,
+                                            String position,
+                                            String status,
+                                            String industry,
+                                            String department,
+                                            String roleKeyword) {
         List<AggregationOperation> operations = new ArrayList<>();
 
         // Build match criteria dynamically
@@ -80,6 +115,18 @@ public class CandidateService {
         }
         if (position != null && !position.isBlank()) {
             conditions.add(Criteria.where("position").regex(position, "i"));
+        }
+        if (status != null && !status.isBlank()) {
+            conditions.add(Criteria.where("status").is(status.trim().toUpperCase(Locale.ROOT)));
+        }
+        if (industry != null && !industry.isBlank()) {
+            conditions.add(Criteria.where("industry").regex(industry.trim(), "i"));
+        }
+        if (department != null && !department.isBlank()) {
+            conditions.add(Criteria.where("assignedDepartment").regex(department.trim(), "i"));
+        }
+        if (roleKeyword != null && !roleKeyword.isBlank()) {
+            conditions.add(Criteria.where("assignedRole").regex(roleKeyword.trim(), "i"));
         }
 
         if (!conditions.isEmpty()) {
@@ -135,13 +182,28 @@ public class CandidateService {
                 .fullName(req.getFullName())
                 .email(req.getEmail())
                 .phone(req.getPhone())
+                .industry(req.getIndustry())
                 .position(req.getPosition())
                 .yearsExperience(req.getYearsExperience())
                 .skills(req.getSkills())
                 .projects(projects)
                 .workExperiences(experiences)
                 .certifications(req.getCertifications())
+                .assignedDepartment(req.getAssignedDepartment())
+                .assignedRole(req.getAssignedRole())
+                .assignedManagerId(req.getAssignedManagerId())
                 .cvUrl(req.getCvUrl())
                 .build();
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new RuntimeException("status is required");
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        if (!VALID_STATUSES.contains(normalized)) {
+            throw new RuntimeException("Unsupported status: " + status);
+        }
+        return normalized;
     }
 }

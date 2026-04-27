@@ -43,7 +43,7 @@ public class AiParsingService {
 
         try {
             String prompt = "Bạn là một trợ lý nhân sự. Hãy phân tích CV sau và trích xuất các thông tin: " +
-                    "Tên ứng viên (fullName), email, số điện thoại (phone), vị trí ứng tuyển (position), " +
+                    "Tên ứng viên (fullName), email, số điện thoại (phone), lĩnh vực ngành nghề (industry), vị trí ứng tuyển (position), " +
                     "số năm kinh nghiệm (yearsExperience), và kỹ năng (skills). " +
                     "Nếu thiếu mục nào thì sẽ bỏ trống mục đó (để null đối với chuỗi/số, hoặc mảng rỗng đối với danh sách). " +
                     "Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc dưới đây. Không giải thích thêm, không dùng markdown (```json):\n" +
@@ -51,6 +51,7 @@ public class AiParsingService {
                     "  \"fullName\": \"string\",\n" +
                     "  \"email\": \"string\",\n" +
                     "  \"phone\": \"string\",\n" +
+                    "  \"industry\": \"string\",\n" +
                     "  \"position\": \"string\",\n" +
                     "  \"yearsExperience\": 0,\n" +
                     "  \"skills\": [\"string\", \"string\"]\n" +
@@ -111,15 +112,30 @@ public class AiParsingService {
         CandidateRequest req = new CandidateRequest();
 
         String lower = cvText.toLowerCase();
-        if (lower.contains("java") || lower.contains("spring")) {
+        if (lower.contains("bank") || lower.contains("finance") || lower.contains("accounting")) {
+            req.setIndustry("Finance");
+            req.setPosition("Financial Analyst");
+            req.setSkills(List.of("Financial Reporting", "Excel", "Risk Analysis"));
+        } else if (lower.contains("hospital") || lower.contains("clinic") || lower.contains("medical")) {
+            req.setIndustry("Healthcare");
+            req.setPosition("Healthcare Operations Specialist");
+            req.setSkills(List.of("Healthcare Operations", "Patient Service", "Compliance"));
+        } else if (lower.contains("teacher") || lower.contains("education") || lower.contains("training")) {
+            req.setIndustry("Education");
+            req.setPosition("Training Specialist");
+            req.setSkills(List.of("Curriculum Design", "Training Delivery", "Assessment"));
+        } else if (lower.contains("java") || lower.contains("spring") || lower.contains("backend")) {
+            req.setIndustry("Technology");
             req.setPosition("Java Developer");
             req.setSkills(List.of("Java", "Spring Boot", "SQL"));
         } else if (lower.contains("react") || lower.contains("frontend")) {
+            req.setIndustry("Technology");
             req.setPosition("Frontend Developer");
             req.setSkills(List.of("React", "JavaScript", "CSS"));
         } else {
-            req.setPosition("Software Engineer");
-            req.setSkills(List.of("Software Development"));
+            req.setIndustry("General");
+            req.setPosition("Operations Executive");
+            req.setSkills(List.of("Communication", "Problem Solving"));
         }
 
         req.setFullName("Unknown Candidate");
