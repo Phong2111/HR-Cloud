@@ -70,17 +70,40 @@ public class OrganizationService {
 
     /**
      * Returns the full org chart as a tree structure using Recursive CTE result.
+     * When filtering by department, builds the full tree but prunes branches
+     * that don't contain any members of the target department.
      */
     public List<OrgChartNode> getOrgChart(String department, Integer rootId) {
-        List<Staff> allStaff = getAllStaff(department);
+        // Always fetch ALL staff for tree building (managers may be in different departments)
+        List<Staff> allStaff = staffRepository.findAll();
+
+        // Determine which IDs belong to the filtered department
+        Set<Integer> departmentIds = null;
+        if (department != null && !department.isBlank()) {
+            String deptTrimmed = department.trim();
+            departmentIds = allStaff.stream()
+                    .filter(s -> deptTrimmed.equalsIgnoreCase(s.getDepartment()))
+                    .map(Staff::getId)
+                    .collect(Collectors.toSet());
+        }
+
+        List<OrgChartNode> tree;
         if (rootId != null) {
             Staff root = allStaff.stream()
                     .filter(staff -> Objects.equals(staff.getId(), rootId))
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("Cannot find root staff in current filter: " + rootId));
-            return List.of(buildNode(allStaff, root, 0));
+            tree = List.of(buildNode(allStaff, root, 0));
+        } else {
+            tree = buildTree(allStaff, null, 0);
         }
-        return buildTree(allStaff, null, 0);
+
+        // If department filter is active, prune branches that don't contain matching members
+        if (departmentIds != null) {
+            tree = pruneTree(tree, departmentIds);
+        }
+
+        return tree;
     }
 
     /**
@@ -91,6 +114,38 @@ public class OrganizationService {
         List<OrgChartNode> tree = getOrgChart(department, rootId);
         for (OrgChartNode node : tree) {
             flattenTree(node, result);
+        }
+        return result;
+    }
+
+    /**
+     * Recursively prune the tree: keep only branches that contain at least
+     * one node whose ID is in the relevantIds set.
+     */
+    private List<OrgChartNode> pruneTree(List<OrgChartNode> nodes, Set<Integer> relevantIds) {
+        List<OrgChartNode> result = new ArrayList<>();
+        for (OrgChartNode node : nodes) {
+            // Recursively prune children first
+            List<OrgChartNode> prunedChildren = pruneTree(node.getChildren(), relevantIds);
+            boolean selfRelevant = relevantIds.contains(node.getId());
+            boolean hasRelevantChild = !prunedChildren.isEmpty();
+
+            if (selfRelevant || hasRelevantChild) {
+                // Keep this node with the pruned children
+                OrgChartNode kept = OrgChartNode.builder()
+                        .id(node.getId())
+                        .name(node.getName())
+                        .managerId(node.getManagerId())
+                        .salary(node.getSalary())
+                        .leaveBalance(node.getLeaveBalance())
+                        .department(node.getDepartment())
+                        .roleTitle(node.getRoleTitle())
+                        .documentFolder(node.getDocumentFolder())
+                        .level(node.getLevel())
+                        .children(prunedChildren)
+                        .build();
+                result.add(kept);
+            }
         }
         return result;
     }

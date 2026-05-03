@@ -91,8 +91,13 @@ public class CandidateController {
 
         // 4. Update the request with cvUrl
         request.setCvUrl(cvUrl);
-        if (request.getFullName() == null || request.getFullName().isEmpty()) {
-            request.setFullName(file.getOriginalFilename());
+        if (request.getFullName() == null || request.getFullName().isBlank()) {
+            String filename = file.getOriginalFilename();
+            if (filename != null) {
+                // Strip the .pdf extension for a cleaner display name
+                filename = filename.replaceAll("(?i)\\.pdf$", "").trim();
+            }
+            request.setFullName(filename != null && !filename.isEmpty() ? filename : "Unknown Candidate");
         }
 
         // 5. Save to database
@@ -106,8 +111,12 @@ public class CandidateController {
             String cvText = pdfExtractionService.extractTextFromPdf(file);
             CandidateRequest request = aiParsingService.parseCvText(cvText);
             request.setCvUrl(cvUrl);
-            if (request.getFullName() == null || request.getFullName().isEmpty()) {
-                request.setFullName(file.getOriginalFilename());
+            if (request.getFullName() == null || request.getFullName().isBlank()) {
+                String filename = file.getOriginalFilename();
+                if (filename != null) {
+                    filename = filename.replaceAll("(?i)\\.pdf$", "").trim();
+                }
+                request.setFullName(filename != null && !filename.isEmpty() ? filename : "Unknown Candidate");
             }
             return candidateService.createCandidate(request);
         }).toList();
