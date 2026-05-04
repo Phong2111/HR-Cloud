@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 public class OrganizationService {
 
     private final StaffRepository staffRepository;
+    private final DepartmentService departmentService;
 
     public List<Staff> getAllStaff(String department) {
         if (department == null || department.isBlank()) {
@@ -34,14 +35,17 @@ public class OrganizationService {
         if (staffRepository.existsById(request.getId())) {
             throw new RuntimeException("Staff with ID " + request.getId() + " already exists");
         }
+        String department = normalizeDepartment(request.getDepartment());
+        departmentService.validateDepartmentExists(department);
+
         Staff staff = Staff.builder()
                 .id(request.getId())
                 .name(request.getName())
                 .managerId(request.getManagerId())
                 .salary(request.getSalary())
                 .leaveBalance(request.getLeaveBalance())
-            .department(normalizeDepartment(request.getDepartment()))
-            .roleTitle(normalizeRoleTitle(request.getRoleTitle()))
+                .department(department)
+                .roleTitle(normalizeRoleTitle(request.getRoleTitle()))
                 .documentFolder(request.getDocumentFolder())
                 .build();
         return staffRepository.save(staff);
@@ -50,11 +54,14 @@ public class OrganizationService {
     @Transactional
     public Staff updateStaff(Integer id, StaffRequest request) {
         Staff staff = getStaffById(id);
+        String department = normalizeDepartment(request.getDepartment());
+        departmentService.validateDepartmentExists(department);
+
         staff.setName(request.getName());
         staff.setManagerId(request.getManagerId());
         staff.setSalary(request.getSalary());
         staff.setLeaveBalance(request.getLeaveBalance());
-        staff.setDepartment(normalizeDepartment(request.getDepartment()));
+        staff.setDepartment(department);
         staff.setRoleTitle(normalizeRoleTitle(request.getRoleTitle()));
         staff.setDocumentFolder(request.getDocumentFolder());
         return staffRepository.save(staff);

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { orgService, leaveService, recruitService } from '../services/api';
+import ThemeToggle from '../components/ThemeToggle';
 
-export default function DashboardPage() {
+export default function DashboardPage({ theme, onToggleTheme }) {
   const [stats, setStats] = useState(null);
   const [leaves, setLeaves] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -19,19 +20,25 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="loading"><div className="spinner" /> Đang tải...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /> Đang tải dữ liệu...</div>;
 
-  const approvedLeaves = leaves.filter(l => l.status === 'Approved').length;
-  const pendingCandidates = candidates.filter(c => c.status === 'PENDING').length;
+  const approvedLeaves = leaves.filter((leave) => leave.status === 'Approved').length;
+  const pendingCandidates = candidates.filter((candidate) => candidate.status === 'PENDING').length;
 
   return (
     <div>
       <div className="page-header">
-        <h2>📊 Dashboard Tổng quan</h2>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>HR Cloud Platform v1.0</span>
+        <div>
+          <h2>📊 Tổng quan hệ thống</h2>
+          <div className="page-note">Theo dõi nhanh nhân sự, nghỉ phép và tuyển dụng trên một màn hình.</div>
+        </div>
+        <div className="page-actions">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <span className="theme-pill">Phiên bản 1.0</span>
+        </div>
       </div>
+
       <div className="page-body">
-        {/* Stats Cards */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon blue">👥</div>
@@ -44,7 +51,7 @@ export default function DashboardPage() {
             <div className="stat-icon green">✅</div>
             <div>
               <div className="stat-value">{approvedLeaves}</div>
-              <div className="stat-label">Nghỉ phép đã duyệt</div>
+              <div className="stat-label">Đơn nghỉ phép đã duyệt</div>
             </div>
           </div>
           <div className="stat-card">
@@ -60,13 +67,12 @@ export default function DashboardPage() {
               <div className="stat-value">
                 {stats?.totalPayroll ? `${(stats.totalPayroll / 1000000).toFixed(1)}M` : '-'}
               </div>
-              <div className="stat-label">Tổng lương/tháng</div>
+              <div className="stat-label">Tổng lương mỗi tháng</div>
             </div>
           </div>
         </div>
 
         <div className="grid-2">
-          {/* Recent Leaves */}
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">📅 Nghỉ phép gần đây</h3>
@@ -76,19 +82,19 @@ export default function DashboardPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Staff ID</th>
-                      <th>Ngày</th>
+                      <th>Mã nhân viên</th>
+                      <th>Số ngày</th>
                       <th>Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {leaves.slice(0, 5).map(l => (
-                      <tr key={l.id}>
-                        <td>#{l.staffId}</td>
-                        <td>{l.days} ngày</td>
+                    {leaves.slice(0, 5).map((leave) => (
+                      <tr key={leave.id}>
+                        <td>#{leave.staffId}</td>
+                        <td>{leave.days} ngày</td>
                         <td>
-                          <span className={`badge ${l.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
-                            {l.status}
+                          <span className={`badge ${leave.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
+                            {leave.status === 'Approved' ? 'Đã duyệt' : leave.status}
                           </span>
                         </td>
                       </tr>
@@ -99,12 +105,11 @@ export default function DashboardPage() {
             ) : (
               <div className="empty-state">
                 <div className="icon">📅</div>
-                <p>Chưa có đơn nghỉ phép</p>
+                <p>Chưa có đơn nghỉ phép nào.</p>
               </div>
             )}
           </div>
 
-          {/* Candidates */}
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">🎯 Ứng viên mới nhất</h3>
@@ -120,17 +125,20 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {candidates.slice(0, 5).map(c => (
-                      <tr key={c.id}>
-                        <td>{c.fullName}</td>
-                        <td>{c.position}</td>
+                    {candidates.slice(0, 5).map((candidate) => (
+                      <tr key={candidate.id}>
+                        <td>{candidate.fullName}</td>
+                        <td>{candidate.position}</td>
                         <td>
                           <span className={`badge ${
-                            c.status === 'HIRED' ? 'badge-success' :
-                            c.status === 'REJECTED' ? 'badge-danger' :
-                            c.status === 'INTERVIEWING' ? 'badge-warning' :
-                            'badge-info'
-                          }`}>{c.status}</span>
+                            candidate.status === 'HIRED' ? 'badge-success'
+                              : candidate.status === 'REJECTED' ? 'badge-danger'
+                                : candidate.status === 'INTERVIEWING' ? 'badge-warning'
+                                  : 'badge-info'
+                          }`}
+                          >
+                            {candidate.status}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -140,30 +148,30 @@ export default function DashboardPage() {
             ) : (
               <div className="empty-state">
                 <div className="icon">🎯</div>
-                <p>Chưa có ứng viên</p>
+                <p>Chưa có ứng viên trong hệ thống.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Architecture Info Card */}
         <div className="card mt-4">
           <div className="card-header">
             <h3 className="card-title">🏗 Kiến trúc hệ thống</h3>
+            <span className="section-caption">Mỗi dịch vụ phụ trách một nghiệp vụ riêng và giao tiếp qua API.</span>
           </div>
           <div className="grid-3" style={{ marginTop: 8 }}>
             {[
-              { icon: '🔐', name: 'Identity Service', port: '8081', tech: 'Spring Boot + JWT + SQL Server', desc: 'Xác thực & phân quyền RBAC' },
-              { icon: '🏢', name: 'Organization Service', port: '8082', tech: 'Spring Boot + Recursive CTE', desc: 'Nhân viên & Sơ đồ tổ chức' },
-              { icon: '📅', name: 'Leave Service', port: '8083', tech: 'Spring Boot + Stored Procedure', desc: 'Nghỉ phép ACID atomic' },
-              { icon: '🎯', name: 'Recruitment Service', port: '8084', tech: 'Spring Boot + MongoDB', desc: 'Aggregation Pipeline ứng viên' },
-            ].map(s => (
-              <div key={s.port} style={{ padding: '16px', background: 'rgba(99,102,241,0.05)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)' }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{s.name}</div>
-                <div style={{ color: 'var(--primary)', fontSize: 12, marginBottom: 4 }}>Port {s.port}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0' }}>{s.tech}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{s.desc}</div>
+              { icon: '🔐', name: 'Identity Service', port: '8081', tech: 'Spring Boot + JWT + SQL Server', desc: 'Xác thực người dùng và phân quyền truy cập.' },
+              { icon: '🏢', name: 'Organization Service', port: '8082', tech: 'Spring Boot + Recursive CTE', desc: 'Quản lý nhân viên, phòng ban và sơ đồ tổ chức.' },
+              { icon: '📅', name: 'Leave Service', port: '8083', tech: 'Spring Boot + Stored Procedure', desc: 'Xử lý nghỉ phép theo cơ chế ACID an toàn.' },
+              { icon: '🎯', name: 'Recruitment Service', port: '8084', tech: 'Spring Boot + MongoDB', desc: 'Quản lý ứng viên, CV và tìm kiếm tổng hợp.' },
+            ].map((service) => (
+              <div key={service.port} style={{ padding: '18px', background: 'var(--surface-muted)', borderRadius: 16, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>{service.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{service.name}</div>
+                <div style={{ color: 'var(--primary)', fontSize: 12, marginBottom: 6 }}>Cổng {service.port}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0' }}>{service.tech}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{service.desc}</div>
               </div>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { orgService } from '../services/api';
+import ThemeToggle from '../components/ThemeToggle';
 
 function OrgNode({ node, level = 0 }) {
   const [expanded, setExpanded] = useState(true);
@@ -31,7 +32,7 @@ function OrgNode({ node, level = 0 }) {
       </div>
       {expanded && node.children?.length > 0 && (
         <div className="org-node-children">
-          {node.children.map(child => (
+          {node.children.map((child) => (
             <OrgNode key={child.id} node={child} level={level + 1} />
           ))}
         </div>
@@ -40,11 +41,18 @@ function OrgNode({ node, level = 0 }) {
   );
 }
 
-export default function OrgChartPage() {
+const getErrorText = (error, fallback) => (
+  error?.response?.data?.error
+  || error?.response?.data?.message
+  || fallback
+);
+
+export default function OrgChartPage({ theme, onToggleTheme }) {
   const [orgChart, setOrgChart] = useState([]);
   const [flatChart, setFlatChart] = useState([]);
   const [staff, setStaff] = useState([]);
   const [allStaff, setAllStaff] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [hierarchyDraft, setHierarchyDraft] = useState({});
   const [savingHierarchyId, setSavingHierarchyId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +62,7 @@ export default function OrgChartPage() {
   const [message, setMessage] = useState(null);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [rootFilter, setRootFilter] = useState('');
-  const [form, setForm] = useState({
+  const [staffForm, setStaffForm] = useState({
     id: '',
     name: '',
     managerId: '',
@@ -63,6 +71,13 @@ export default function OrgChartPage() {
     department: '',
     roleTitle: '',
   });
+  const [departmentForm, setDepartmentForm] = useState({
+    id: '',
+    name: '',
+    description: '',
+  });
+  const [departmentFormMode, setDepartmentFormMode] = useState('create');
+  const [savingDepartment, setSavingDepartment] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -75,11 +90,12 @@ export default function OrgChartPage() {
       if (departmentFilter) params.department = departmentFilter;
       if (rootFilter) params.rootId = parseInt(rootFilter, 10);
 
-      const [allStaffRes, chartRes, flatRes, staffRes] = await Promise.all([
+      const [allStaffRes, chartRes, flatRes, staffRes, departmentRes] = await Promise.all([
         orgService.getStaff(),
         orgService.getOrgChart(params),
         orgService.getOrgChartFlat(params),
         orgService.getStaff(departmentFilter ? { department: departmentFilter } : undefined),
+        orgService.getDepartments(),
       ]);
 
       const subtreeIds = new Set((flatRes.data || []).map((node) => node.id));
@@ -88,33 +104,43 @@ export default function OrgChartPage() {
         : (staffRes.data || []);
 
       setAllStaff(allStaffRes.data || []);
-      setOrgChart(chartRes.data);
-      setFlatChart(flatRes.data);
+      setOrgChart(chartRes.data || []);
+      setFlatChart(flatRes.data || []);
       setStaff(visibleStaff);
+      setDepartments(departmentRes.data || []);
       setHierarchyDraft(Object.fromEntries(
         (flatRes.data || []).map((node) => [node.id, node.managerId == null ? '' : String(node.managerId)]),
       ));
     } catch (error) {
-      setMessage({ type: 'error', text: 'Không thể tải dữ liệu tổ chức' });
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể tải dữ liệu tổ chức.') });
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setForm({
+  const resetStaffForm = () => {
+    setStaffForm({
       id: '',
       name: '',
       managerId: '',
       salary: '',
       leaveBalance: 15,
-      department: departmentFilter || '',
+      department: departmentFilter || departments[0]?.name || '',
       roleTitle: '',
     });
   };
 
+  const resetDepartmentForm = () => {
+    setDepartmentForm({
+      id: '',
+      name: '',
+      description: '',
+    });
+    setDepartmentFormMode('create');
+  };
+
   const openCreateModal = () => {
-    resetForm();
+    resetStaffForm();
     setModalMode('create');
     setShowModal(true);
   };
@@ -124,7 +150,7 @@ export default function OrgChartPage() {
     try {
       const res = await orgService.getStaffById(id);
       const staffData = res.data;
-      setForm({
+      setStaffForm({
         id: staffData.id,
         name: staffData.name || '',
         managerId: staffData.managerId ?? '',
@@ -136,7 +162,7 @@ export default function OrgChartPage() {
       setModalMode('edit');
       setShowModal(true);
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Không thể tải thông tin nhân viên' });
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể tải thông tin nhân viên.') });
     }
   };
 
@@ -146,50 +172,100 @@ export default function OrgChartPage() {
       const res = await orgService.getStaffById(id);
       setSelectedStaff(res.data);
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Không thể tải chi tiết nhân viên' });
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể tải chi tiết nhân viên.') });
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleStaffSubmit = async (e) => {
     e.preventDefault();
     try {
       const payload = {
-        id: parseInt(form.id),
-        name: form.name,
-        managerId: form.managerId ? parseInt(form.managerId) : null,
-        salary: parseInt(form.salary),
-        leaveBalance: parseInt(form.leaveBalance),
-        department: form.department || 'General',
-        roleTitle: form.roleTitle || 'Staff',
+        id: parseInt(staffForm.id, 10),
+        name: staffForm.name,
+        managerId: staffForm.managerId ? parseInt(staffForm.managerId, 10) : null,
+        salary: parseInt(staffForm.salary, 10),
+        leaveBalance: parseInt(staffForm.leaveBalance, 10),
+        department: staffForm.department,
+        roleTitle: staffForm.roleTitle || 'Staff',
       };
 
       if (modalMode === 'edit') {
-        await orgService.updateStaff(parseInt(form.id), payload);
-        setMessage({ type: 'success', text: 'Cập nhật nhân viên thành công!' });
+        await orgService.updateStaff(parseInt(staffForm.id, 10), payload);
+        setMessage({ type: 'success', text: 'Cập nhật nhân viên thành công.' });
       } else {
         await orgService.createStaff(payload);
-        setMessage({ type: 'success', text: 'Thêm nhân viên thành công!' });
+        setMessage({ type: 'success', text: 'Thêm nhân viên thành công.' });
       }
 
       setShowModal(false);
-      resetForm();
+      resetStaffForm();
       fetchData();
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Lỗi khi lưu nhân viên' });
+      setMessage({ type: 'error', text: getErrorText(error, 'Lỗi khi lưu nhân viên.') });
     }
   };
 
-  const departmentOptions = Array.from(
-    new Set(allStaff.map((member) => member.department).filter(Boolean)),
-  ).sort();
+  const handleDepartmentSubmit = async (e) => {
+    e.preventDefault();
+    setSavingDepartment(true);
+    try {
+      const payload = {
+        name: departmentForm.name,
+        description: departmentForm.description,
+      };
 
-  const branchRoots = allStaff.filter(
-    (member) => !departmentFilter || member.department === departmentFilter,
-  );
+      if (departmentFormMode === 'edit' && departmentForm.id) {
+        await orgService.updateDepartment(departmentForm.id, payload);
+        setMessage({ type: 'success', text: 'Cập nhật phòng ban thành công.' });
+      } else {
+        await orgService.createDepartment(payload);
+        setMessage({ type: 'success', text: 'Thêm phòng ban thành công.' });
+      }
 
+      resetDepartmentForm();
+      await fetchData();
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể lưu phòng ban.') });
+    } finally {
+      setSavingDepartment(false);
+    }
+  };
+
+  const editDepartment = (department) => {
+    setDepartmentForm({
+      id: department.id,
+      name: department.name || '',
+      description: department.description || '',
+    });
+    setDepartmentFormMode('edit');
+  };
+
+  const deleteDepartment = async (department) => {
+    if (!window.confirm(`Xóa phòng ban ${department.name}?`)) return;
+    try {
+      await orgService.deleteDepartment(department.id);
+      if (departmentFilter === department.name) {
+        setDepartmentFilter('');
+        setRootFilter('');
+      }
+      if (staffForm.department === department.name) {
+        setStaffForm((current) => ({ ...current, department: '' }));
+      }
+      if (departmentForm.id === department.id) {
+        resetDepartmentForm();
+      }
+      setMessage({ type: 'success', text: 'Đã xóa phòng ban thành công.' });
+      await fetchData();
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể xóa phòng ban.') });
+    }
+  };
+
+  const departmentOptions = departments.map((department) => department.name);
+  const branchRoots = allStaff.filter((member) => !departmentFilter || member.department === departmentFilter);
   const managerOptions = allStaff.filter((member) => {
-    const notSelf = String(member.id) !== String(form.id);
-    const sameDepartment = !form.department || member.department === form.department;
+    const notSelf = String(member.id) !== String(staffForm.id);
+    const sameDepartment = !staffForm.department || member.department === staffForm.department;
     return notSelf && sameDepartment;
   });
 
@@ -199,12 +275,12 @@ export default function OrgChartPage() {
     const oldManagerId = node.managerId == null ? null : node.managerId;
 
     if (newManagerId === node.id) {
-      setMessage({ type: 'error', text: 'Nhân viên không thể tự quản lý chính mình' });
+      setMessage({ type: 'error', text: 'Nhân viên không thể tự quản lý chính mình.' });
       return;
     }
 
     if (newManagerId === oldManagerId) {
-      setMessage({ type: 'success', text: 'Không có thay đổi phân cấp để lưu' });
+      setMessage({ type: 'success', text: 'Không có thay đổi phân cấp để lưu.' });
       return;
     }
 
@@ -216,29 +292,40 @@ export default function OrgChartPage() {
         managerId: newManagerId,
         salary: node.salary,
         leaveBalance: node.leaveBalance,
-        department: node.department || 'General',
+        department: node.department || departmentOptions[0] || 'General',
         roleTitle: node.roleTitle || 'Staff',
         documentFolder: node.documentFolder || null,
       };
       await orgService.updateStaff(node.id, payload);
-      setMessage({ type: 'success', text: `Đã cập nhật phân cấp cho ${node.name}` });
+      setMessage({ type: 'success', text: `Đã cập nhật phân cấp cho ${node.name}.` });
       await fetchData();
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Không thể cập nhật phân cấp' });
+      setMessage({ type: 'error', text: getErrorText(error, 'Không thể cập nhật phân cấp.') });
     } finally {
       setSavingHierarchyId(null);
     }
   };
 
-  if (loading) return <div className="loading"><div className="spinner" /> Đang tải...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /> Đang tải dữ liệu...</div>;
 
   return (
     <div>
       <div className="page-header">
-        <h2>🏢 Sơ đồ tổ chức (Org Chart)</h2>
-        <button className="btn btn-primary" onClick={openCreateModal} id="btn-add-staff">
-          + Thêm nhân viên
-        </button>
+        <div>
+          <h2>🏢 Sơ đồ tổ chức</h2>
+          <div className="page-note">Quản lý nhân viên, phòng ban và mối quan hệ quản lý trực tiếp.</div>
+        </div>
+        <div className="page-actions">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <button
+            className="btn btn-primary"
+            onClick={openCreateModal}
+            id="btn-add-staff"
+            disabled={departmentOptions.length === 0}
+          >
+            + Thêm nhân viên
+          </button>
+        </div>
       </div>
 
       <div className="page-body">
@@ -248,9 +335,94 @@ export default function OrgChartPage() {
           </div>
         )}
 
+        <div className="grid-2" style={{ marginBottom: 16 }}>
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Quản lý phòng ban</h3>
+            </div>
+            <form onSubmit={handleDepartmentSubmit}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Tên phòng ban</label>
+                  <input
+                    className="form-input"
+                    value={departmentForm.name}
+                    onChange={(e) => setDepartmentForm({ ...departmentForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Mô tả</label>
+                  <input
+                    className="form-input"
+                    value={departmentForm.description}
+                    onChange={(e) => setDepartmentForm({ ...departmentForm, description: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button type="submit" className="btn btn-primary" disabled={savingDepartment}>
+                  {savingDepartment
+                    ? 'Đang lưu...'
+                    : departmentFormMode === 'edit'
+                      ? 'Cập nhật phòng ban'
+                      : 'Thêm phòng ban'}
+                </button>
+                <button type="button" className="btn btn-outline" onClick={resetDepartmentForm}>
+                  Làm mới
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Danh sách phòng ban ({departments.length})</h3>
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {departments.length > 0 ? departments.map((department) => (
+                <div
+                  key={department.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    background: 'var(--surface-muted)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{department.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      {department.description || 'Chưa có mô tả'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => editDepartment(department)}>
+                      Sửa
+                    </button>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => deleteDepartment(department)}>
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div className="empty-state">
+                  <div className="icon">🏷️</div>
+                  <h3>Chưa có phòng ban</h3>
+                  <p>Hãy thêm phòng ban trước khi tạo nhân viên hoặc tuyển dụng ứng viên.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header">
-            <h3 className="card-title">🧭 Bộ lọc sơ đồ theo phòng ban và nhánh</h3>
+            <h3 className="card-title">Bộ lọc sơ đồ theo phòng ban và nhánh</h3>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <div className="form-group" style={{ minWidth: 220, marginBottom: 0 }}>
@@ -288,13 +460,14 @@ export default function OrgChartPage() {
 
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button
+                type="button"
                 className="btn btn-outline"
                 onClick={() => {
                   setDepartmentFilter('');
                   setRootFilter('');
                 }}
               >
-                ↺ Xóa lọc
+                Xóa lọc
               </button>
             </div>
           </div>
@@ -303,19 +476,19 @@ export default function OrgChartPage() {
         <div className="grid-2">
           <div className="card" style={{ gridColumn: 'span 2' }}>
             <div className="card-header">
-              <h3 className="card-title">📊 Sơ đồ phân cấp (Recursive CTE)</h3>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Kết quả từ WITH OrgChart AS (Recursive CTE)
-              </span>
+              <div>
+                <h3 className="card-title">Sơ đồ phân cấp (Recursive CTE)</h3>
+                <span className="section-caption">Kết quả dựng cây phân cấp nhân sự từ dữ liệu tổ chức.</span>
+              </div>
             </div>
             <div className="org-tree" style={{ padding: '8px 0' }}>
               {orgChart.length > 0 ? (
-                orgChart.map(node => <OrgNode key={node.id} node={node} level={0} />)
+                orgChart.map((node) => <OrgNode key={node.id} node={node} level={0} />)
               ) : (
                 <div className="empty-state">
                   <div className="icon">🏢</div>
                   <h3>Chưa có dữ liệu tổ chức</h3>
-                  <p>Thêm nhân viên để xây dựng sơ đồ</p>
+                  <p>Thêm nhân viên để xây dựng sơ đồ tổ chức.</p>
                 </div>
               )}
             </div>
@@ -323,10 +496,10 @@ export default function OrgChartPage() {
 
           <div className="card" style={{ gridColumn: 'span 2' }}>
             <div className="card-header">
-              <h3 className="card-title">📄 Sơ đồ phẳng (Recursive CTE)</h3>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Dữ liệu trả về từ /api/org-chart/flat
-              </span>
+              <div>
+                <h3 className="card-title">Sơ đồ phẳng (Recursive CTE)</h3>
+                <span className="section-caption">Danh sách nhân sự theo thứ bậc dùng để chỉnh nhanh quản lý trực tiếp.</span>
+              </div>
             </div>
             <div className="table-container">
               <table>
@@ -344,7 +517,7 @@ export default function OrgChartPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {flatChart.map(node => (
+                  {flatChart.map((node) => (
                     <tr key={node.id}>
                       <td>#{node.id}</td>
                       <td>{node.name}</td>
@@ -369,6 +542,7 @@ export default function OrgChartPage() {
                               ))}
                           </select>
                           <button
+                            type="button"
                             className="btn btn-outline btn-sm"
                             disabled={savingHierarchyId === node.id}
                             onClick={() => saveHierarchy(node)}
@@ -389,7 +563,7 @@ export default function OrgChartPage() {
 
           <div className="card" style={{ gridColumn: 'span 2' }}>
             <div className="card-header">
-              <h3 className="card-title">👥 Danh sách nhân viên ({staff.length})</h3>
+              <h3 className="card-title">Danh sách nhân viên ({staff.length})</h3>
             </div>
             <div className="table-container">
               <table>
@@ -406,53 +580,55 @@ export default function OrgChartPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {staff.map((s) => {
-                    const manager = allStaff.find((m) => m.id === s.managerId);
+                  {staff.map((member) => {
+                    const manager = allStaff.find((staffItem) => staffItem.id === member.managerId);
                     return (
-                      <tr key={s.id}>
-                        <td><span className="badge badge-purple">#{s.id}</span></td>
+                      <tr key={member.id}>
+                        <td><span className="badge badge-purple">#{member.id}</span></td>
                         <td>
                           <strong
                             style={{ cursor: 'pointer', color: 'var(--primary)' }}
-                            onClick={() => openStaffDetail(s.id)}
+                            onClick={() => openStaffDetail(member.id)}
                           >
-                            {s.name}
+                            {member.name}
                           </strong>
                         </td>
                         <td>{manager ? manager.name : <span className="badge badge-info">CEO</span>}</td>
-                        <td>{s.department || 'General'}</td>
-                        <td>{s.roleTitle || 'Staff'}</td>
-                        <td>{s.salary?.toLocaleString()} VNĐ</td>
+                        <td>{member.department || 'General'}</td>
+                        <td>{member.roleTitle || 'Staff'}</td>
+                        <td>{member.salary?.toLocaleString()} VNĐ</td>
                         <td>
-                          <span className={`badge ${s.leaveBalance > 10 ? 'badge-success' : s.leaveBalance > 5 ? 'badge-warning' : 'badge-danger'}`}>
-                            {s.leaveBalance} ngày
+                          <span className={`badge ${member.leaveBalance > 10 ? 'badge-success' : member.leaveBalance > 5 ? 'badge-warning' : 'badge-danger'}`}>
+                            {member.leaveBalance} ngày
                           </span>
                         </td>
                         <td>
                           <button
+                            type="button"
                             className="btn btn-outline btn-sm"
                             style={{ marginRight: 8 }}
-                            onClick={() => openEditModal(s.id)}
+                            onClick={() => openEditModal(member.id)}
                           >
-                            ✏ Sửa
+                            Sửa
                           </button>
                           <button
+                            type="button"
                             className="btn btn-danger btn-sm"
                             onClick={async () => {
-                              if (window.confirm(`Xóa nhân viên ${s.name}?`)) {
+                              if (window.confirm(`Xóa nhân viên ${member.name}?`)) {
                                 try {
-                                  await orgService.deleteStaff(s.id);
+                                  await orgService.deleteStaff(member.id);
                                   fetchData();
                                 } catch (error) {
                                   setMessage({
                                     type: 'error',
-                                    text: error.response?.data?.error || 'Không thể xóa nhân viên',
+                                    text: getErrorText(error, 'Không thể xóa nhân viên.'),
                                   });
                                 }
                               }
                             }}
                           >
-                            🗑 Xóa
+                            Xóa
                           </button>
                         </td>
                       </tr>
@@ -469,13 +645,13 @@ export default function OrgChartPage() {
         <div className="modal-backdrop" onClick={() => setSelectedStaff(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div className="modal-header">
-              <h3 className="modal-title">👤 Chi tiết nhân viên</h3>
-              <button className="modal-close" onClick={() => setSelectedStaff(null)}>✕</button>
+              <h3 className="modal-title">Chi tiết nhân viên</h3>
+              <button className="modal-close" onClick={() => setSelectedStaff(null)}>×</button>
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               <p><strong>ID:</strong> #{selectedStaff.id}</p>
               <p><strong>Tên:</strong> {selectedStaff.name}</p>
-              <p><strong>Quản lý:</strong> {allStaff.find((m) => m.id === selectedStaff.managerId)?.name || 'CEO'}</p>
+              <p><strong>Quản lý:</strong> {allStaff.find((member) => member.id === selectedStaff.managerId)?.name || 'CEO'}</p>
               <p><strong>Phòng ban:</strong> {selectedStaff.department || 'General'}</p>
               <p><strong>Vai trò:</strong> {selectedStaff.roleTitle || 'Staff'}</p>
               <p><strong>Lương:</strong> {selectedStaff.salary?.toLocaleString()} VNĐ</p>
@@ -490,7 +666,7 @@ export default function OrgChartPage() {
                   openEditModal(currentId);
                 }}
               >
-                ✏ Chỉnh sửa
+                Chỉnh sửa
               </button>
               <button className="btn btn-outline" onClick={() => setSelectedStaff(null)}>Đóng</button>
             </div>
@@ -503,51 +679,55 @@ export default function OrgChartPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'edit' ? '✏ Chỉnh sửa nhân viên' : '➕ Thêm nhân viên mới'}
+                {modalMode === 'edit' ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
               </h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleStaffSubmit}>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">ID nhân viên *</label>
+                  <label className="form-label">ID nhân viên</label>
                   <input
                     className="form-input"
                     type="number"
-                    value={form.id}
-                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                    value={staffForm.id}
+                    onChange={(e) => setStaffForm({ ...staffForm, id: e.target.value })}
                     required
                     readOnly={modalMode === 'edit'}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Tên nhân viên *</label>
+                  <label className="form-label">Tên nhân viên</label>
                   <input
                     className="form-input"
                     type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    value={staffForm.name}
+                    onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Quản lý (ID)</label>
+                  <label className="form-label">Quản lý</label>
                   <select
                     className="form-input"
-                    value={form.managerId}
-                    onChange={(e) => setForm({ ...form, managerId: e.target.value })}
+                    value={staffForm.managerId}
+                    onChange={(e) => setStaffForm({ ...staffForm, managerId: e.target.value })}
                   >
                     <option value="">-- Cấp cao nhất (CEO) --</option>
-                    {managerOptions.map((s) => <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>)}
+                    {managerOptions.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} (#{member.id})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Lương (VNĐ) *</label>
+                  <label className="form-label">Lương (VNĐ)</label>
                   <input
                     className="form-input"
                     type="number"
-                    value={form.salary}
-                    onChange={(e) => setForm({ ...form, salary: e.target.value })}
+                    value={staffForm.salary}
+                    onChange={(e) => setStaffForm({ ...staffForm, salary: e.target.value })}
                     required
                   />
                 </div>
@@ -556,34 +736,40 @@ export default function OrgChartPage() {
                   <input
                     className="form-input"
                     type="number"
-                    value={form.leaveBalance}
-                    onChange={(e) => setForm({ ...form, leaveBalance: e.target.value })}
+                    value={staffForm.leaveBalance}
+                    onChange={(e) => setStaffForm({ ...staffForm, leaveBalance: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Phòng ban *</label>
-                  <input
+                  <label className="form-label">Phòng ban</label>
+                  <select
                     className="form-input"
-                    type="text"
-                    value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    value={staffForm.department}
+                    onChange={(e) => setStaffForm({ ...staffForm, department: e.target.value, managerId: '' })}
                     required
-                  />
+                  >
+                    <option value="">-- Chọn phòng ban --</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.name}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Vai trò *</label>
+                  <label className="form-label">Vai trò</label>
                   <input
                     className="form-input"
                     type="text"
-                    value={form.roleTitle}
-                    onChange={(e) => setForm({ ...form, roleTitle: e.target.value })}
+                    value={staffForm.roleTitle}
+                    onChange={(e) => setStaffForm({ ...staffForm, roleTitle: e.target.value })}
                     required
                   />
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button type="submit" className="btn btn-primary">
-                  ✓ {modalMode === 'edit' ? 'Cập nhật nhân viên' : 'Lưu nhân viên'}
+                <button type="submit" className="btn btn-primary" disabled={departmentOptions.length === 0}>
+                  {modalMode === 'edit' ? 'Cập nhật nhân viên' : 'Lưu nhân viên'}
                 </button>
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Hủy</button>
               </div>

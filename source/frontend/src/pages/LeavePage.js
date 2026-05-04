@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { leaveService, orgService } from '../services/api';
+import ThemeToggle from '../components/ThemeToggle';
 
-export default function LeavePage() {
+export default function LeavePage({ theme, onToggleTheme }) {
   const [leaves, setLeaves] = useState([]);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,32 +40,32 @@ export default function LeavePage() {
     const parsed = parseInt(daysValue, 10);
 
     if (Number.isNaN(parsed)) {
-      return { type: 'error', text: 'Số ngày nghỉ không hợp lệ' };
+      return { type: 'error', text: 'Số ngày nghỉ không hợp lệ.' };
     }
     if (parsed <= 0) {
-      return { type: 'error', text: 'Số ngày nghỉ phải lớn hơn 0' };
+      return { type: 'error', text: 'Số ngày nghỉ phải lớn hơn 0.' };
     }
     if (parsed > 30) {
-      return { type: 'error', text: 'Một yêu cầu không thể vượt quá 30 ngày' };
+      return { type: 'error', text: 'Một yêu cầu không thể vượt quá 30 ngày.' };
     }
 
     if (staffIdValue) {
-      const selectedStaff = staff.find((s) => String(s.id) === String(staffIdValue));
+      const selectedStaff = staff.find((member) => String(member.id) === String(staffIdValue));
       if (selectedStaff && parsed > selectedStaff.leaveBalance) {
         return {
           type: 'error',
-          text: `Nhập ${parsed} ngày vượt quá ngày phép còn lại (${selectedStaff.leaveBalance} ngày)`,
+          text: `Bạn đang nhập ${parsed} ngày, vượt quá số ngày phép còn lại (${selectedStaff.leaveBalance} ngày).`,
         };
       }
       if (selectedStaff && parsed > 10) {
         return {
           type: 'warn',
-          text: `Yêu cầu ${parsed} ngày là khá dài, vui lòng kiểm tra lại trước khi gửi`,
+          text: `Yêu cầu ${parsed} ngày là khá dài, vui lòng kiểm tra lại trước khi gửi.`,
         };
       }
     }
 
-    return { type: 'ok', text: `Số ngày nghỉ hợp lệ: ${parsed} ngày` };
+    return { type: 'ok', text: `Số ngày nghỉ hợp lệ: ${parsed} ngày.` };
   };
 
   const handleRequest = async (e) => {
@@ -72,20 +73,20 @@ export default function LeavePage() {
     const validation = validateRequestedDays(form.staffId, form.days);
     setDaysLog(validation);
     if (!validation || validation.type === 'error') {
-      setResult({ status: 'Error', message: validation?.text || 'Vui lòng nhập số ngày nghỉ hợp lệ' });
+      setResult({ status: 'Error', message: validation?.text || 'Vui lòng nhập số ngày nghỉ hợp lệ.' });
       return;
     }
 
     setSubmitting(true);
     setResult(null);
     try {
-      const res = await leaveService.requestLeave(parseInt(form.staffId), parseInt(form.days));
+      const res = await leaveService.requestLeave(parseInt(form.staffId, 10), parseInt(form.days, 10));
       setResult(res.data);
       if (res.data.status === 'Approved') {
         fetchData();
       }
     } catch (err) {
-      setResult({ status: 'Error', message: err.response?.data?.error || 'Lỗi kết nối server' });
+      setResult({ status: 'Error', message: err.response?.data?.error || 'Không thể kết nối đến máy chủ.' });
     } finally {
       setSubmitting(false);
     }
@@ -100,10 +101,10 @@ export default function LeavePage() {
     setBalanceLoading(true);
     setBalanceInfo(null);
     try {
-      const res = await leaveService.getLeaveBalance(parseInt(balanceLookupId));
+      const res = await leaveService.getLeaveBalance(parseInt(balanceLookupId, 10));
       setBalanceInfo(res.data);
     } catch (err) {
-      setBalanceInfo({ error: err.response?.data?.error || 'Không thể tra cứu ngày phép' });
+      setBalanceInfo({ error: err.response?.data?.error || 'Không thể tra cứu ngày phép.' });
     } finally {
       setBalanceLoading(false);
     }
@@ -117,7 +118,7 @@ export default function LeavePage() {
 
     setHistoryLoading(true);
     try {
-      const res = await leaveService.getLeavesByStaff(parseInt(historyStaffId));
+      const res = await leaveService.getLeavesByStaff(parseInt(historyStaffId, 10));
       setStaffHistory(res.data);
     } catch (err) {
       setStaffHistory([]);
@@ -126,50 +127,66 @@ export default function LeavePage() {
     }
   };
 
-  if (loading) return <div className="loading"><div className="spinner" /> Đang tải...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /> Đang tải dữ liệu...</div>;
 
   return (
     <div>
       <div className="page-header">
-        <h2>📅 Quản lý nghỉ phép</h2>
+        <div>
+          <h2>📅 Quản lý nghỉ phép</h2>
+          <div className="page-note">Theo dõi ngày phép còn lại và gửi yêu cầu nghỉ ngay trên hệ thống.</div>
+        </div>
+        <div className="page-actions">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
       </div>
+
       <div className="page-body">
         <div className="grid-2">
-          {/* Request Form */}
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">📝 Gửi yêu cầu nghỉ phép</h3>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
-              Hệ thống sẽ gọi Stored Procedure <code style={{ color: 'var(--primary)' }}>ApproveLeave(@staff_id, @days)</code> đảm bảo xử lý ATOMIC.
+              Hệ thống gọi stored procedure <code>ApproveLeave(@staff_id, @days)</code> để đảm bảo xử lý atomic.
             </p>
             <form onSubmit={handleRequest}>
               <div className="form-group">
-                <label className="form-label">Nhân viên *</label>
-                <select className="form-input" value={form.staffId}
-                  onChange={e => {
+                <label className="form-label">Nhân viên</label>
+                <select
+                  className="form-input"
+                  value={form.staffId}
+                  onChange={(e) => {
                     const nextStaffId = e.target.value;
                     setForm({ ...form, staffId: nextStaffId });
                     setDaysLog(validateRequestedDays(nextStaffId, form.days));
-                  }} required>
+                  }}
+                  required
+                >
                   <option value="">-- Chọn nhân viên --</option>
-                  {staff.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} (#{s.id}) - Còn {s.leaveBalance} ngày
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} (#{member.id}) - Còn {member.leaveBalance} ngày
                     </option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Số ngày nghỉ *</label>
-                <input className="form-input" type="number" min="1" max="30"
+                <label className="form-label">Số ngày nghỉ</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="1"
+                  max="30"
                   value={form.days}
-                  onChange={e => {
+                  onChange={(e) => {
                     const nextDays = e.target.value;
                     setForm({ ...form, days: nextDays });
                     setDaysLog(validateRequestedDays(form.staffId, nextDays));
                   }}
-                  required placeholder="VD: 5" />
+                  required
+                  placeholder="Ví dụ: 5"
+                />
               </div>
               {daysLog && (
                 <div className={`alert mb-4 ${daysLog.type === 'error' ? 'alert-error' : 'alert-success'}`}>
@@ -177,44 +194,53 @@ export default function LeavePage() {
                 </div>
               )}
               <button type="submit" className="btn btn-primary" disabled={submitting} id="btn-request-leave">
-                {submitting ? '⏳ Đang xử lý...' : '📨 Gửi yêu cầu'}
+                {submitting ? 'Đang xử lý...' : 'Gửi yêu cầu'}
               </button>
             </form>
 
             {result && (
               <div className={`alert mt-4 alert-${result.status === 'Approved' ? 'success' : 'error'}`}>
                 <div style={{ fontWeight: 700 }}>
-                  {result.status === 'Approved' ? '✅ Phê duyệt thành công' :
-                   result.status === 'Rejected' ? '❌ Từ chối - Không đủ ngày phép' : '⚠ Lỗi'}
+                  {result.status === 'Approved'
+                    ? 'Yêu cầu đã được duyệt'
+                    : result.status === 'Rejected'
+                      ? 'Yêu cầu bị từ chối'
+                      : 'Có lỗi xảy ra'}
                 </div>
                 <div style={{ marginTop: 6, fontSize: 13 }}>{result.message}</div>
                 {result.remainingBalance !== undefined && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: 'inherit', opacity: 0.8 }}>
-                    Số ngày còn lại: <strong>{result.remainingBalance}</strong>
+                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.85 }}>
+                    Ngày phép còn lại: <strong>{result.remainingBalance}</strong>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Balance Info */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">💊 Ngày phép hiện tại</h3>
+              <h3 className="card-title">💊 Số ngày phép hiện tại</h3>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {staff.map(s => (
-                <div key={s.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', background: 'rgba(255,255,255,0.02)',
-                  borderRadius: 8, border: '1px solid var(--dark-border)'
-                }}>
+              {staff.map((member) => (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: 'var(--surface-muted)',
+                    borderRadius: 14,
+                    border: '1px solid var(--border)',
+                  }}
+                >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID #{s.id}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{member.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>ID #{member.id}</div>
                   </div>
-                  <span className={`badge ${s.leaveBalance > 10 ? 'badge-success' : s.leaveBalance > 5 ? 'badge-warning' : 'badge-danger'}`}>
-                    {s.leaveBalance} ngày
+                  <span className={`badge ${member.leaveBalance > 10 ? 'badge-success' : member.leaveBalance > 5 ? 'badge-warning' : 'badge-danger'}`}>
+                    {member.leaveBalance} ngày
                   </span>
                 </div>
               ))}
@@ -229,15 +255,15 @@ export default function LeavePage() {
             </div>
             <div className="form-group">
               <label className="form-label">Chọn nhân viên</label>
-              <select className="form-input" value={balanceLookupId} onChange={e => setBalanceLookupId(e.target.value)}>
+              <select className="form-input" value={balanceLookupId} onChange={(e) => setBalanceLookupId(e.target.value)}>
                 <option value="">-- Chọn nhân viên --</option>
-                {staff.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>{member.name} (#{member.id})</option>
                 ))}
               </select>
             </div>
             <button className="btn btn-primary" onClick={handleLookupBalance} disabled={balanceLoading}>
-              {balanceLoading ? '⏳ Đang tra cứu...' : 'Tra cứu balance'}
+              {balanceLoading ? 'Đang tra cứu...' : 'Tra cứu balance'}
             </button>
             {balanceInfo && (
               <div className={`alert mt-4 ${balanceInfo.error ? 'alert-error' : 'alert-success'}`}>
@@ -260,15 +286,15 @@ export default function LeavePage() {
             </div>
             <div className="form-group">
               <label className="form-label">Nhân viên</label>
-              <select className="form-input" value={historyStaffId} onChange={e => setHistoryStaffId(e.target.value)}>
+              <select className="form-input" value={historyStaffId} onChange={(e) => setHistoryStaffId(e.target.value)}>
                 <option value="">-- Chọn nhân viên --</option>
-                {staff.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} (#{s.id})</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>{member.name} (#{member.id})</option>
                 ))}
               </select>
             </div>
             <button className="btn btn-outline" onClick={handleLoadHistory} disabled={historyLoading}>
-              {historyLoading ? '⏳ Đang tải...' : 'Xem lịch sử'}
+              {historyLoading ? 'Đang tải...' : 'Xem lịch sử'}
             </button>
             {staffHistory.length > 0 ? (
               <div className="table-container mt-4">
@@ -281,13 +307,13 @@ export default function LeavePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {staffHistory.map(item => (
+                    {staffHistory.map((item) => (
                       <tr key={item.id}>
                         <td>#{item.id}</td>
                         <td>{item.days} ngày</td>
                         <td>
                           <span className={`badge ${item.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
-                            {item.status}
+                            {item.status === 'Approved' ? 'Đã duyệt' : item.status}
                           </span>
                         </td>
                       </tr>
@@ -299,14 +325,13 @@ export default function LeavePage() {
               historyStaffId && !historyLoading && (
                 <div className="empty-state" style={{ marginTop: 16 }}>
                   <div className="icon">📚</div>
-                  <p>Chưa có dữ liệu lịch sử cho nhân viên này</p>
+                  <p>Chưa có lịch sử nghỉ phép cho nhân viên này.</p>
                 </div>
               )
             )}
           </div>
         </div>
 
-        {/* Leave History */}
         <div className="card mt-4">
           <div className="card-header">
             <h3 className="card-title">📋 Lịch sử nghỉ phép ({leaves.length} bản ghi)</h3>
@@ -317,22 +342,20 @@ export default function LeavePage() {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Staff ID</th>
+                    <th>Nhân viên</th>
                     <th>Số ngày</th>
                     <th>Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.map(l => (
-                    <tr key={l.id}>
-                      <td>#{l.id}</td>
+                  {leaves.map((leave) => (
+                    <tr key={leave.id}>
+                      <td>#{leave.id}</td>
+                      <td>{staff.find((member) => member.id === leave.staffId)?.name || `#${leave.staffId}`}</td>
+                      <td>{leave.days} ngày</td>
                       <td>
-                        {staff.find(s => s.id === l.staffId)?.name || `#${l.staffId}`}
-                      </td>
-                      <td>{l.days} ngày</td>
-                      <td>
-                        <span className={`badge ${l.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
-                          {l.status}
+                        <span className={`badge ${leave.status === 'Approved' ? 'badge-success' : 'badge-danger'}`}>
+                          {leave.status === 'Approved' ? 'Đã duyệt' : leave.status}
                         </span>
                       </td>
                     </tr>

@@ -1,5 +1,5 @@
 # Stage 1: Build with Maven
-FROM maven:3.9.6-eclipse-temurin-17-alpine AS build
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copy parent pom
@@ -20,8 +20,8 @@ COPY . .
 # Build only the recruitment-service module
 RUN mvn -pl recruitment-service clean package -DskipTests -am
 
-# Stage 2: Run with lightweight JRE
-FROM eclipse-temurin:17-jre-alpine
+# Stage 2: Run with the same base image to avoid extra registry pulls
+FROM maven:3.9.6-eclipse-temurin-17
 WORKDIR /app
 COPY --from=build /app/recruitment-service/target/*.jar app.jar
 EXPOSE 8084

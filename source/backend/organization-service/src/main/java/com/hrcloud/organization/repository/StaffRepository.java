@@ -1,8 +1,10 @@
 package com.hrcloud.organization.repository;
 
 import com.hrcloud.organization.entity.Staff;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -30,7 +32,18 @@ public interface StaffRepository extends JpaRepository<Staff, Integer> {
 
     List<Staff> findByDepartmentIgnoreCase(String department);
 
+    long countByDepartmentIgnoreCase(String department);
+
     List<Staff> findByManagerId(Integer managerId);
 
     List<Staff> findByManagerIdIsNull();
+
+    @Modifying
+    @Query("""
+            update Staff s
+            set s.department = :newDepartment
+            where lower(s.department) = lower(:oldDepartment)
+            """)
+    int renameDepartment(@Param("oldDepartment") String oldDepartment,
+                         @Param("newDepartment") String newDepartment);
 }
