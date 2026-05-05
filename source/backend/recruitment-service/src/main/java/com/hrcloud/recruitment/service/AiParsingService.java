@@ -37,7 +37,9 @@ public class AiParsingService {
                 "DevOps Engineer",
                 "Data Engineer",
                 "QA Engineer",
-                "Product Manager"
+                "Product Manager",
+                "Data Analyst",
+                "AI Engineer"
         ));
         POSITIONS_BY_INDUSTRY.put("Finance", List.of(
                 "Financial Analyst",
@@ -85,7 +87,8 @@ public class AiParsingService {
 
         SKILLS_BY_INDUSTRY.put("Technology", List.of(
                 "Java", "Spring Boot", "JavaScript", "TypeScript", "React", "Node.js",
-                "SQL Server", "MongoDB", "Docker", "Kubernetes", "REST API", "Microservices"
+                "SQL Server", "MongoDB", "Docker", "Kubernetes", "REST API", "Microservices",
+                "Python", "SQL", "Data Analysis", "Machine Learning", "TensorFlow", "Test Automation"
         ));
         SKILLS_BY_INDUSTRY.put("Finance", List.of(
                 "Financial Reporting", "Risk Analysis", "Compliance", "Data Analysis", "Excel",
@@ -269,14 +272,14 @@ public class AiParsingService {
         }
 
         String text = normalizeText(cvText);
+        if (containsAny(text, "java", "spring", "react", "frontend", "backend", "devops", "software", "developer", "qa", "data engineer", "data analyst", "python", "sql")) return "Technology";
         if (containsAny(text, "bank", "finance", "accounting", "audit", "financial")) return "Finance";
         if (containsAny(text, "hospital", "clinic", "medical", "healthcare", "patient")) return "Healthcare";
-        if (containsAny(text, "teacher", "education", "training", "academic", "curriculum")) return "Education";
+        if (containsAny(text, "teacher", "training", "academic", "curriculum", "pedagogy", "teaching")) return "Education";
         if (containsAny(text, "warehouse", "logistics", "shipping", "procurement", "supply chain", "transport")) return "Logistics";
         if (containsAny(text, "retail", "store", "merchand", "e-commerce", "customer service")) return "Retail";
         if (containsAny(text, "hotel", "hospitality", "restaurant", "event", "guest")) return "Hospitality";
         if (containsAny(text, "factory", "manufacturing", "production", "quality control", "maintenance")) return "Manufacturing";
-        if (containsAny(text, "java", "spring", "react", "frontend", "backend", "devops", "software", "developer", "qa", "data engineer")) return "Technology";
         return null;
     }
 
@@ -404,7 +407,28 @@ public class AiParsingService {
         CandidateRequest req = new CandidateRequest();
 
         String lower = normalizeText(cvText);
-        if (containsAny(lower, "bank", "finance", "accounting", "audit")) {
+        if (containsAny(lower, "java", "spring", "react", "frontend", "backend", "devops", "software", "developer", "qa", "data engineer", "data analyst", "python", "sql")) {
+            req.setIndustry("Technology");
+            if (containsAny(lower, "data analyst", "analytics", "sql", "python")) {
+                req.setPosition("Data Analyst");
+                req.setSkills(List.of("Python", "SQL", "Data Analysis"));
+            } else if (containsAny(lower, "qa", "quality assurance", "test automation", "tester")) {
+                req.setPosition("QA Engineer");
+                req.setSkills(List.of("Test Automation", "Manual Testing", "Quality Assurance"));
+            } else if (containsAny(lower, "machine learning", "tensorflow", "ai", "deep learning")) {
+                req.setPosition("AI Engineer");
+                req.setSkills(List.of("Machine Learning", "TensorFlow", "Python"));
+            } else if (containsAny(lower, "devops", "docker", "kubernetes")) {
+                req.setPosition("DevOps Engineer");
+                req.setSkills(List.of("Docker", "Kubernetes", "REST API"));
+            } else if (containsAny(lower, "react", "frontend")) {
+                req.setPosition("Frontend Developer");
+                req.setSkills(List.of("React", "JavaScript", "TypeScript"));
+            } else {
+                req.setPosition("Backend Developer");
+                req.setSkills(List.of("Java", "Spring Boot", "SQL Server"));
+            }
+        } else if (containsAny(lower, "bank", "finance", "accounting", "audit")) {
             req.setIndustry("Finance");
             req.setPosition("Financial Analyst");
             req.setSkills(List.of("Financial Reporting", "Excel", "Risk Analysis"));
@@ -412,30 +436,10 @@ public class AiParsingService {
             req.setIndustry("Healthcare");
             req.setPosition("Healthcare Operations Specialist");
             req.setSkills(List.of("Healthcare Operations", "Patient Service", "Compliance"));
-        } else if (containsAny(lower, "teacher", "education", "training", "academic")) {
+        } else if (containsAny(lower, "teacher", "training", "academic", "pedagogy")) {
             req.setIndustry("Education");
             req.setPosition("Training Specialist");
             req.setSkills(List.of("Curriculum Design", "Training Delivery", "Assessment"));
-        } else if (containsAny(lower, "devops", "docker", "kubernetes", "ci/cd")) {
-            req.setIndustry("Technology");
-            req.setPosition("DevOps Engineer");
-            req.setSkills(List.of("Docker", "Kubernetes", "REST API"));
-        } else if (containsAny(lower, "react", "frontend", "javascript")) {
-            req.setIndustry("Technology");
-            req.setPosition("Frontend Developer");
-            req.setSkills(List.of("React", "JavaScript", "TypeScript"));
-        } else if (containsAny(lower, "fullstack", "full stack", "full-stack")) {
-            req.setIndustry("Technology");
-            req.setPosition("Fullstack Developer");
-            req.setSkills(List.of("Java", "React", "Node.js"));
-        } else if (containsAny(lower, "data engineer", "etl", "pipeline", "analytics")) {
-            req.setIndustry("Technology");
-            req.setPosition("Data Engineer");
-            req.setSkills(List.of("SQL Server", "MongoDB", "Microservices"));
-        } else if (containsAny(lower, "qa", "testing", "test automation", "quality assurance")) {
-            req.setIndustry("Technology");
-            req.setPosition("QA Engineer");
-            req.setSkills(List.of("REST API", "Docker", "Java"));
         } else if (containsAny(lower, "warehouse", "logistics", "shipping", "procurement")) {
             req.setIndustry("Logistics");
             req.setPosition("Logistics Coordinator");

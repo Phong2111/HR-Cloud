@@ -1,0 +1,151 @@
+# Template Báo Cáo Dự Án HR-Cloud Platform
+
+## Trang Bìa
+- Tên dự án: HR-Cloud Platform
+- Tên trường/Đại học: [Tên trường]
+- Tên sinh viên/Nhóm: [Tên nhóm]
+- Giáo viên hướng dẫn: [Tên GV]
+- Ngày tháng năm: [Ngày]
+
+## Mục Lục
+1. Giới thiệu
+   1.1. Bối cảnh dự án
+   1.2. Mục tiêu dự án
+   1.3. Phạm vi dự án
+   1.4. Phương pháp thực hiện
+2. Phân tích yêu cầu
+   2.1. Yêu cầu chức năng
+   2.2. Yêu cầu phi chức năng
+   2.3. Phân tích use case
+   2.4. Đặc tả yêu cầu từ tài liệu Đặc Tả HR.docx
+3. Thiết kế hệ thống
+   3.1. Kiến trúc tổng thể
+   3.2. Thiết kế cơ sở dữ liệu
+       3.2.1. SQL Server cho HR data
+       3.2.2. MongoDB cho recruitment data
+   3.3. Thiết kế microservices
+       3.3.1. Identity Service
+       3.3.2. Organization Service
+       3.3.3. Leave Service
+       3.3.4. Recruitment Service
+       3.3.5. Frontend Service
+   3.4. Thiết kế giao diện người dùng
+   3.5. Bảo mật và xác thực (JWT)
+4. Chi tiết triển khai
+   4.1. Công nghệ sử dụng
+       4.1.1. Backend: Spring Boot, Java 17
+       4.1.2. Frontend: React 18
+       4.1.3. Cơ sở dữ liệu: SQL Server, MongoDB
+       4.1.4. Containerization: Docker, Docker Compose
+   4.2. Triển khai Identity Service
+       4.2.1. JWT Authentication
+       4.2.2. Security Configuration
+       4.2.3. API Endpoints
+   4.3. Triển khai Organization Service
+       4.3.1. Recursive CTE cho Org Chart
+       4.3.2. CRUD operations
+   4.4. Triển khai Leave Service
+       4.4.1. Stored Procedure cho phê duyệt nghỉ phép
+       4.4.2. Transaction management
+   4.5. Triển khai Recruitment Service
+       4.5.1. MongoDB Aggregation Pipeline
+       4.5.2. Candidate management
+   4.6. Triển khai Frontend
+       4.6.1. React components
+       4.6.2. Routing và authentication
+       4.6.3. API integration
+   4.7. Docker và orchestration
+5. Kiểm thử và đánh giá
+   5.1. Kế hoạch kiểm thử
+   5.2. Test cases
+       5.2.1. Unit testing
+       5.2.2. Integration testing
+       5.2.3. End-to-end testing
+   5.3. Kết quả kiểm thử
+   5.4. Hướng dẫn test từ HUONG_DAN_TEST.txt
+   5.5. Đánh giá hiệu suất
+6. Triển khai và vận hành
+   6.1. Hướng dẫn cài đặt
+   6.2. Cấu hình môi trường
+   6.3. Monitoring và logging
+   6.4. Backup và recovery
+7. Kết luận
+   7.1. Tổng kết dự án
+   7.2. Đánh giá kết quả
+   7.3. Học hỏi và kinh nghiệm
+   7.4. Hướng phát triển tương lai
+8. Tài liệu tham khảo
+9. Phụ lục
+   9.1. Mã nguồn chính
+   9.2. Screenshots
+   9.3. Dữ liệu test
+   9.4. Tài liệu từ thư mục Document
+
+---
+
+## Hướng dẫn viết báo cáo (khoảng 50 trang)
+
+### Giới thiệu (5-7 trang)
+- Mô tả bối cảnh ngành HR và nhu cầu số hóa
+- Giới thiệu về microservices architecture
+- Mục tiêu cụ thể của dự án HR-Cloud
+- Phạm vi: 4 backend services + 1 frontend
+- Phương pháp: Agile, Scrum, etc.
+
+### Phân tích yêu cầu (8-10 trang)
+- Chi tiết các use case từ Đặc Tả HR.docx
+- Yêu cầu authentication và authorization
+- Yêu cầu quản lý tổ chức (org chart)
+- Yêu cầu quản lý nghỉ phép
+- Yêu cầu tuyển dụng
+- Yêu cầu phi chức năng: performance, security, scalability
+
+### Thiết kế hệ thống (10-12 trang)
+- Sơ đồ kiến trúc tổng thể
+- ER diagram cho SQL Server
+- Schema MongoDB
+- Sequence diagrams cho các API
+- UI wireframes/mockups
+- Security design (JWT, roles)
+
+### Chi tiết triển khai (15-18 trang)
+- Mô tả từng service chi tiết
+- Code snippets quan trọng
+- Cấu hình Docker
+- Database scripts (init.sql)
+- Frontend implementation
+- Challenges và solutions
+
+### Kiểm thử (5-7 trang)
+- Test strategy
+- Unit tests cho services
+- Integration tests
+- Manual testing scenarios từ HUONG_DAN_TEST.txt
+- Performance testing
+- Bug reports và fixes
+
+### Triển khai và vận hành (3-5 trang)
+- Docker Compose setup
+- Environment configuration
+- Deployment procedures
+- Maintenance guidelines
+
+### Kết luận và tương lai (2-3 trang)
+- Achievements
+- Lessons learned
+- Future enhancements
+
+### Phụ lục (5-10 trang)
+- Full code listings
+- Test results
+- User manuals
+- References to Document files
+
+---
+
+## Lưu ý khi viết
+- Sử dụng font Times New Roman 12pt, line spacing 1.5
+- Bao gồm hình ảnh, sơ đồ, code snippets
+- Tham khảo rubric từ Rubric Chấm điểm Đồ án Cuối kỳ.docx
+- Tuân thủ yêu cầu từ Final Assignment Hand-in Requirements Rubric.pdf
+- Chi tiết từ Final Group Assignment Detailed Topics.pdf
