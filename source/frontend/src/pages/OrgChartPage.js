@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { orgService } from '../services/api';
+import { orgService, recruitService } from '../services/api';
 import ThemeToggle from '../components/ThemeToggle';
 
 function OrgNode({ node, level = 0 }) {
@@ -78,6 +78,8 @@ export default function OrgChartPage({ theme, onToggleTheme }) {
   });
   const [departmentFormMode, setDepartmentFormMode] = useState('create');
   const [savingDepartment, setSavingDepartment] = useState(false);
+  const [candidateInfo, setCandidateInfo] = useState(null);
+  const [candidateLoading, setCandidateLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -171,8 +173,24 @@ export default function OrgChartPage({ theme, onToggleTheme }) {
     try {
       const res = await orgService.getStaffById(id);
       setSelectedStaff(res.data);
+
+      // If this staff was recruited from a candidate, load candidate info
+      if (res.data.candidateId) {
+        setCandidateLoading(true);
+        try {
+          const candidateRes = await recruitService.getCandidateById(res.data.candidateId);
+          setCandidateInfo(candidateRes.data);
+        } catch (err) {
+          console.error('Could not load candidate info:', err);
+          setCandidateInfo(null);
+        } finally {
+          setCandidateLoading(false);
+        }
+      } else {
+        setCandidateInfo(null);
+      }
     } catch (error) {
-      setMessage({ type: 'error', text: getErrorText(error, 'Không thể tải chi tiết nhân viên.') });
+      setMessage({ type: 'error', text: getErrorText(error, 'Khong the tai chi tiet nhan vien.') });
     }
   };
 
@@ -592,6 +610,9 @@ export default function OrgChartPage({ theme, onToggleTheme }) {
                           >
                             {member.name}
                           </strong>
+                          {member.candidateId && (
+                            <span className="badge badge-success" style={{ marginLeft: 8, fontSize: 10 }}>Tu tuyen dung</span>
+                          )}
                         </td>
                         <td>{manager ? manager.name : <span className="badge badge-info">CEO</span>}</td>
                         <td>{member.department || 'General'}</td>
@@ -642,7 +663,7 @@ export default function OrgChartPage({ theme, onToggleTheme }) {
       </div>
 
       {selectedStaff && (
-        <div className="modal-backdrop" onClick={() => setSelectedStaff(null)}>
+        <div className="modal-backdrop" onClick={() => { setSelectedStaff(null); setCandidateInfo(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h3 className="modal-title">Chi tiết nhân viên</h3>
@@ -650,12 +671,95 @@ export default function OrgChartPage({ theme, onToggleTheme }) {
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               <p><strong>ID:</strong> #{selectedStaff.id}</p>
-              <p><strong>Tên:</strong> {selectedStaff.name}</p>
-              <p><strong>Quản lý:</strong> {allStaff.find((member) => member.id === selectedStaff.managerId)?.name || 'CEO'}</p>
-              <p><strong>Phòng ban:</strong> {selectedStaff.department || 'General'}</p>
-              <p><strong>Vai trò:</strong> {selectedStaff.roleTitle || 'Staff'}</p>
-              <p><strong>Lương:</strong> {selectedStaff.salary?.toLocaleString()} VNĐ</p>
-              <p><strong>Ngày phép còn:</strong> {selectedStaff.leaveBalance} ngày</p>
+              <p><strong>Ten:</strong> {selectedStaff.name}</p>
+              <p><strong>Quan ly:</strong> {allStaff.find((member) => member.id === selectedStaff.managerId)?.name || 'CEO'}</p>
+              <p><strong>Phong ban:</strong> {selectedStaff.department || 'General'}</p>
+              <p><strong>Vai tro:</strong> {selectedStaff.roleTitle || 'Staff'}</p>
+              <p><strong>Luong:</strong> {selectedStaff.salary?.toLocaleString()} VND</p>
+              <p><strong>Ngay phep con:</strong> {selectedStaff.leaveBalance} ngay</p>
+
+              {/* Candidate Recruitment Info */}
+              {(selectedStaff.candidateId || selectedStaff.candidateEmail || selectedStaff.candidateIndustry) && (
+                <>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' }} />
+                  <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: 16, borderRadius: 12, marginTop: 8 }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      Nhan vien tu tuyen dung
+                    </h4>
+                    {selectedStaff.candidateIndustry && (
+                      <p><strong>Nganh:</strong> {selectedStaff.candidateIndustry}</p>
+                    )}
+                    {selectedStaff.candidatePosition && (
+                      <p><strong>Vi tri tuyen:</strong> {selectedStaff.candidatePosition}</p>
+                    )}
+                    {selectedStaff.candidateExperience && (
+                      <p><strong>Kinh nghiem:</strong> {selectedStaff.candidateExperience} nam</p>
+                    )}
+                    {selectedStaff.candidateSkills && (
+                      <div>
+                        <strong>Ky nang:</strong>
+                        <div className="tags mt-4">
+                          {selectedStaff.candidateSkills.split(',').map((skill, idx) => (
+                            <span key={idx} className="tag">{skill.trim()}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedStaff.candidateEmail && (
+                      <p><strong>Email:</strong> {selectedStaff.candidateEmail}</p>
+                    )}
+                    {selectedStaff.candidatePhone && (
+                      <p><strong>Dien thoai:</strong> {selectedStaff.candidatePhone}</p>
+                    )}
+                    {candidateLoading && (
+                      <div className="loading"><div className="spinner" style={{ width: 20, height: 20 }} /> Dang tai ho so...</div>
+                    )}
+                    {candidateInfo && (
+                      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={async () => {
+                            try {
+                              const formattedRes = await recruitService.getFormattedCv(selectedStaff.candidateId);
+                              const formatted = formattedRes.data;
+                              alert(formatted.formattedCv);
+                            } catch (err) {
+                              setMessage({ type: 'error', text: 'Khong the xem CV.' });
+                            }
+                          }}
+                        >
+                          Xem CV format
+                        </button>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(
+                                `${process.env.REACT_APP_RECRUIT_URL || 'http://localhost:8084'}/api/candidates/${selectedStaff.candidateId}/cv`,
+                                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                              );
+                              if (!response.ok) throw new Error('Download failed');
+                              const blob = await response.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `CV_${selectedStaff.name.replace(/\s+/g, '_')}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              document.body.removeChild(a);
+                            } catch (err) {
+                              setMessage({ type: 'error', text: 'Khong the tai xuong CV.' });
+                            }
+                          }}
+                        >
+                          Tai xuong CV PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-2 mt-4">
               <button

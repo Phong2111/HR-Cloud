@@ -258,3 +258,57 @@ GO
 
 PRINT 'HR Cloud database initialized successfully.';
 GO
+
+-- =====================================================
+-- NEW COLUMNS: Candidate Recruitment Fields (2026-05-07)
+-- =====================================================
+IF COL_LENGTH('Staff', 'CandidateID') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidateID NVARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidateEmail') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidateEmail NVARCHAR(150) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidatePhone') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidatePhone NVARCHAR(50) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidateIndustry') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidateIndustry NVARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidatePosition') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidatePosition NVARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidateSkills') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidateSkills NVARCHAR(500) NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'CandidateExperience') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD CandidateExperience INT NULL;
+END
+GO
+
+IF COL_LENGTH('Staff', 'RecruitedAt') IS NULL
+BEGIN
+    ALTER TABLE Staff ADD RecruitedAt DATETIME NULL;
+END
+GO
+
+PRINT 'Added candidate recruitment columns to Staff table.';
+GO

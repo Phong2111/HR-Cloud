@@ -47,6 +47,15 @@ public class OrganizationService {
                 .department(department)
                 .roleTitle(normalizeRoleTitle(request.getRoleTitle()))
                 .documentFolder(request.getDocumentFolder())
+                // Candidate recruitment info
+                .candidateId(request.getCandidateId())
+                .candidateEmail(request.getCandidateEmail())
+                .candidatePhone(request.getCandidatePhone())
+                .candidateIndustry(request.getCandidateIndustry())
+                .candidatePosition(request.getCandidatePosition())
+                .candidateSkills(request.getCandidateSkills() != null ? String.join(", ", request.getCandidateSkills()) : null)
+                .candidateExperience(request.getCandidateExperience())
+                .recruitedAt(java.time.LocalDateTime.now())
                 .build();
         return staffRepository.save(staff);
     }

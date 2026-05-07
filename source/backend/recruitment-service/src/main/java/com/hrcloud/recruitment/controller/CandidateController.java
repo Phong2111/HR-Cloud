@@ -6,6 +6,7 @@ import com.hrcloud.recruitment.service.CandidateService;
 import com.hrcloud.recruitment.service.FileStorageService;
 import com.hrcloud.recruitment.service.PdfExtractionService;
 import com.hrcloud.recruitment.service.AiParsingService;
+import com.hrcloud.recruitment.service.CvFormatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +25,7 @@ public class CandidateController {
     private final FileStorageService fileStorageService;
     private final PdfExtractionService pdfExtractionService;
     private final AiParsingService aiParsingService;
+    private final CvFormatService cvFormatService;
 
     @PostMapping
     public ResponseEntity<Candidate> createCandidate(@RequestBody CandidateRequest request) {
@@ -59,6 +61,53 @@ public class CandidateController {
     public ResponseEntity<Map<String, String>> deleteCandidate(@PathVariable String id) {
         candidateService.deleteCandidate(id);
         return ResponseEntity.ok(Map.of("message", "Candidate deleted successfully"));
+    }
+
+    /**
+     * GET /api/candidates/{id}/cv
+     * Returns the original CV file for download or preview.
+     */
+    @GetMapping("/{id}/cv")
+    public ResponseEntity<org.springframework.core.io.Resource> getCandidateCv(@PathVariable String id) {
+        Candidate candidate = candidateService.getCandidateById(id);
+        if (candidate.getCvUrl() == null || candidate.getCvUrl().isBlank()) {
+            throw new RuntimeException("No CV file attached to this candidate.");
+        }
+        return fileStorageService.loadCvAsResource(candidate.getCvUrl());
+    }
+
+    /**
+     * GET /api/candidates/{id}/cv/download
+     * Downloads the original CV file as an attachment.
+     */
+    @GetMapping("/{id}/cv/download")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadCandidateCv(@PathVariable String id) {
+        Candidate candidate = candidateService.getCandidateById(id);
+        if (candidate.getCvUrl() == null || candidate.getCvUrl().isBlank()) {
+            throw new RuntimeException("No CV file attached to this candidate.");
+        }
+        return fileStorageService.loadCvAsResource(candidate.getCvUrl(), true);
+    }
+
+    /**
+     * GET /api/candidates/{id}/formatted-cv
+     * Returns the candidate's information formatted as a standardized CV text.
+     */
+    @GetMapping("/{id}/formatted-cv")
+    public ResponseEntity<Map<String, Object>> getFormattedCv(@PathVariable String id) {
+        Candidate candidate = candidateService.getCandidateById(id);
+        String formattedCv = cvFormatService.formatCandidateToCv(candidate);
+        return ResponseEntity.ok(Map.of(
+            "candidateId", candidate.getId() != null ? candidate.getId() : "",
+            "fullName", candidate.getFullName() != null ? candidate.getFullName() : "Unknown",
+            "email", candidate.getEmail() != null ? candidate.getEmail() : "",
+            "phone", candidate.getPhone() != null ? candidate.getPhone() : "",
+            "position", candidate.getPosition() != null ? candidate.getPosition() : "",
+            "industry", candidate.getIndustry() != null ? candidate.getIndustry() : "",
+            "yearsExperience", candidate.getYearsExperience() != null ? candidate.getYearsExperience() : 0,
+            "skills", candidate.getSkills() != null ? candidate.getSkills() : List.of(),
+            "formattedCv", formattedCv
+        ));
     }
 
     /**

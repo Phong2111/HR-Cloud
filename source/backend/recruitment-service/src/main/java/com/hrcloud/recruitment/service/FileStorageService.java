@@ -1,6 +1,11 @@
 package com.hrcloud.recruitment.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +23,13 @@ public class FileStorageService {
     // Default upload directory if not specified in properties
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    /**
+     * Get the upload directory path
+     */
+    public String getUploadDir() {
+        return uploadDir;
+    }
 
     public String storeCandidateCv(MultipartFile file) {
         // Clean the file name
@@ -49,6 +61,53 @@ public class FileStorageService {
 
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+        }
+    }
+
+    /**
+     * Load a CV file as a Resource for download/preview.
+     * @param cvUrl The relative URL path stored in the database
+     * @return ResponseEntity with the file as resource
+     */
+    public ResponseEntity<Resource> loadCvAsResource(String cvUrl) {
+        return loadCvAsResource(cvUrl, false);
+    }
+
+    /**
+     * Load a CV file as a Resource for download/preview.
+     * @param cvUrl The relative URL path stored in the database
+     * @param asAttachment If true, force download; if false, display inline
+     * @return ResponseEntity with the file as resource
+     */
+    public ResponseEntity<Resource> loadCvAsResource(String cvUrl, boolean asAttachment) {
+        try {
+            // Remove leading slash if present
+            String cleanPath = cvUrl.startsWith("/") ? cvUrl.substring(1) : cvUrl;
+            Path filePath = Paths.get(cleanPath).toAbsolutePath().normalize();
+            
+            if (!Files.exists(filePath) || !Files.isReadable(filePath)) {
+                throw new RuntimeException("CV file not found: " + cvUrl);
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+            
+            String fileName = filePath.getFileName().toString();
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = "application/pdf";
+            }
+
+            String disposition = asAttachment 
+                    ? "attachment; filename=\"" + fileName + "\"" 
+                    : "inline; filename=\"" + fileName + "\"";
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                    .body(resource);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load CV file: " + e.getMessage(), e);
         }
     }
 }

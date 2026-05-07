@@ -80,4 +80,13 @@ export const recruitService = {
     recruitApi.post('/api/candidates/upload-batch-cv', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  getFormattedCv: (candidateId) =>
+    recruitApi.get(`/api/candidates/${candidateId}/formatted-cv`),
+  downloadCv: (candidateId) => {
+    const token = localStorage.getItem('token');
+    const url = `${RECRUIT_URL}/api/candidates/${candidateId}/cv/download`;
+    // Open in new window for download
+    window.open(url, '_blank');
+  },
+  getCvUrl: (candidateId) => `${RECRUIT_URL}/api/candidates/${candidateId}/cv`,
 };

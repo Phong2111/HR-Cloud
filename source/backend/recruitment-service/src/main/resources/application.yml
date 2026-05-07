@@ -20,6 +20,11 @@ spring:
           starttls:
             enable: ${MAIL_SMTP_STARTTLS:true}
 
+# File upload directory - can be overridden with environment variable
+app:
+  upload:
+    dir: ${UPLOAD_DIR:uploads}
+
 jwt:
   secret: hrcloud_super_secret_key_for_jwt_signing_must_be_256_bits_minimum_32_chars
   expiration-ms: 86400000

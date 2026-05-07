@@ -260,6 +260,8 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
   });
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, filename: '' });
+  const [cvPreview, setCvPreview] = useState(null);
+  const [cvPreviewLoading, setCvPreviewLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     fullName: '', email: '', phone: '', industry: '', position: '',
@@ -423,6 +425,138 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleViewFormattedCv = async (candidateId) => {
+    setCvPreviewLoading(true);
+    setCvPreview(null);
+    try {
+      const res = await recruitService.getFormattedCv(candidateId);
+      const cvData = res.data;
+      setCvPreview(cvData);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Không thể tải thông tin CV.' });
+    } finally {
+      setCvPreviewLoading(false);
+    }
+  };
+
+  const handlePrintCv = (cvData) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setMessage({ type: 'error', text: 'Vui lòng cho phép popup để in CV.' });
+      return;
+    }
+
+    const skillsHtml = (cvData.skills || []).map(skill =>
+      `<span style="display: inline-block; background: #e0e7ff; color: #3730a3; padding: 4px 12px; border-radius: 16px; margin: 4px; font-size: 12px;">${skill}</span>`
+    ).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>CV - ${cvData.fullName || 'Ứng viên'}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #3730a3; padding-bottom: 20px; }
+          .name { font-size: 28px; font-weight: bold; color: #1e1b4b; margin-bottom: 10px; }
+          .contact { color: #6b7280; font-size: 14px; }
+          .contact span { margin: 0 10px; }
+          .section { margin-bottom: 24px; }
+          .section-title { font-size: 16px; font-weight: bold; color: #3730a3; border-bottom: 2px solid #3730a3; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase; }
+          .section-content { padding-left: 10px; }
+          .skill-container { display: flex; flex-wrap: wrap; gap: 6px; }
+          @media print {
+            body { padding: 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="name">${cvData.fullName || 'Không có tên'}</div>
+          <div class="contact">
+            ${cvData.email ? `<span>Email: ${cvData.email}</span>` : ''}
+            ${cvData.phone ? `<span>| Điện thoại: ${cvData.phone}</span>` : ''}
+            ${cvData.position ? `<span>| Vị trí: ${cvData.position}</span>` : ''}
+            ${cvData.industry ? `<span>| Ngành: ${cvData.industry}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Mục tiêu nghề nghiệp</div>
+          <div class="section-content">
+            Tìm kiếm vị trí ${cvData.position || 'phù hợp'} trong lĩnh vực ${cvData.industry || 'chuyên môn'} để phát triển nghề nghiệp và đóng góp vào thành công của công ty.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Học vấn</div>
+          <div class="section-content">
+            ${getEducationText(cvData.industry)}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Kỹ năng</div>
+          <div class="section-content">
+            <div class="skill-container">
+              ${skillsHtml || '<span>Chưa cập nhật</span>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Kinh nghiệm làm việc</div>
+          <div class="section-content">
+            ${getExperienceText(cvData.yearsExperience)}
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const getEducationText = (industry) => {
+    const degrees = {
+      'Technology': 'Cử nhân Công nghệ thông tin',
+      'Finance': 'Cử nhân Tài chính - Kế toán',
+      'Healthcare': 'Cử nhân Quản lý Y tế',
+      'Education': 'Cử nhân Sư phạm',
+      'Manufacturing': 'Cử nhân Kỹ thuật',
+      'Retail': 'Cử nhân Quản trị Kinh doanh',
+      'Logistics': 'Cử nhân Quản lý Logistics',
+      'Hospitality': 'Cử nhân Quản trị Khách sạn',
+    };
+    const currentYear = new Date().getFullYear();
+    const degree = degrees[industry] || 'Cử nhân';
+    return `${degree} - ${currentYear - 4} - ${currentYear}`;
+  };
+
+  const getExperienceText = (years) => {
+    if (years && years > 0) {
+      return `${years} - ${years + 2} năm kinh nghiệm trong lĩnh vực liên quan`;
+    }
+    return 'Vị trí mới, sẵn sàng học hỏi và đóng góp.';
+  };
+
+  const handleDownloadCv = async (candidateId, fullName) => {
+    try {
+      const res = await recruitService.getFormattedCv(candidateId);
+      handlePrintCv(res.data);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Không thể tải xuống CV.' });
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -522,6 +656,14 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
         leaveBalance,
         department: hireForm.assignedDepartment,
         roleTitle: hireForm.assignedRole,
+        // Store candidate recruitment info
+        candidateId: hiringCandidate.id,
+        candidateEmail: hiringCandidate.email,
+        candidatePhone: hiringCandidate.phone,
+        candidateIndustry: hiringCandidate.industry,
+        candidatePosition: hiringCandidate.position,
+        candidateSkills: hiringCandidate.skills,
+        candidateExperience: hiringCandidate.yearsExperience,
       });
 
       createdStaffId = nextId;
@@ -905,16 +1047,15 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Hồ sơ đính kèm</label>
                   {form.cvUrl ? (
-                    <div>
-                      <a
-                        href={form.cvUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
                         className="badge badge-success"
-                        style={{ padding: '8px 12px', fontSize: 13, textDecoration: 'none' }}
+                        onClick={() => handleViewFormattedCv(editingCandidateId || selectedCandidate?.id)}
+                        style={{ padding: '8px 12px', fontSize: 13, textDecoration: 'none', cursor: 'pointer', border: 'none' }}
                       >
                         Đã có CV (nhấn để xem)
-                      </a>
+                      </button>
                     </div>
                   ) : (
                     <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>
@@ -1026,7 +1167,7 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
         <div className="modal-backdrop" onClick={() => setSelectedCandidate(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 600 }}>
             <div className="modal-header">
-              <h3 className="modal-title">👤 {detailLoading ? 'Đang tải...' : selectedCandidate.fullName}</h3>
+              <h3 className="modal-title">Chi tiết ứng viên</h3>
               <button className="modal-close" onClick={() => setSelectedCandidate(null)}>×</button>
             </div>
             {detailLoading ? (
@@ -1042,7 +1183,14 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
                   <p><strong>Phân công khi tuyển:</strong> {selectedCandidate.assignedDepartment || 'General'} / {selectedCandidate.assignedRole || 'Staff'}</p>
                 )}
                 {selectedCandidate.cvUrl && (
-                  <p><strong>CV:</strong> <a href={selectedCandidate.cvUrl} target="_blank" rel="noreferrer">Xem hồ sơ</a></p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => handleViewFormattedCv(selectedCandidate.id)}
+                    >
+                      Xem / Tải CV PDF
+                    </button>
+                  </div>
                 )}
                 <div className="mt-4">
                   <strong>Kỹ năng:</strong>
@@ -1070,6 +1218,107 @@ export default function RecruitmentPage({ theme, onToggleTheme }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* CV Preview Modal */}
+      {(cvPreview || cvPreviewLoading) && (
+        <div className="modal-backdrop" onClick={() => setCvPreview(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750, maxHeight: '90vh' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">CV - {cvPreview?.fullName || ''}</h3>
+              <button className="modal-close" onClick={() => setCvPreview(null)}>×</button>
+            </div>
+            {cvPreviewLoading ? (
+              <div className="loading"><div className="spinner" /> Đang tải CV...</div>
+            ) : cvPreview ? (
+              <div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handlePrintCv(cvPreview)}
+                  >
+                    In / Tải PDF
+                  </button>
+                </div>
+                <div
+                  style={{
+                    background: '#fff',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: 32,
+                    maxHeight: 'calc(90vh - 180px)',
+                    overflowY: 'auto',
+                    fontFamily: "'Times New Roman', serif",
+                    fontSize: 14,
+                    lineHeight: 1.7,
+                    color: '#333',
+                  }}
+                >
+                  {/* Header */}
+                  <div style={{ textAlign: 'center', marginBottom: 24, paddingBottom: 20, borderBottom: '3px solid #3730a3' }}>
+                    <div style={{ fontSize: 26, fontWeight: 'bold', color: '#1e1b4b', marginBottom: 8 }}>
+                      {cvPreview.fullName || 'Không có tên'}
+                    </div>
+                    <div style={{ color: '#6b7280', fontSize: 13 }}>
+                      {cvPreview.email && <span>Email: {cvPreview.email}</span>}
+                      {cvPreview.phone && <span> | Điện thoại: {cvPreview.phone}</span>}
+                      {cvPreview.position && <span> | Vị trí: {cvPreview.position}</span>}
+                      {cvPreview.industry && <span> | Ngành: {cvPreview.industry}</span>}
+                    </div>
+                  </div>
+
+                  {/* Career Objective */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 15, fontWeight: 'bold', color: '#3730a3', borderBottom: '2px solid #3730a3', paddingBottom: 6, marginBottom: 12, textTransform: 'uppercase' }}>
+                      Mục tiêu nghề nghiệp
+                    </div>
+                    <div style={{ paddingLeft: 8 }}>
+                      Tìm kiếm vị trí {cvPreview.position || 'phù hợp'} trong lĩnh vực {cvPreview.industry || 'chuyên môn'} để phát triển nghề nghiệp và đóng góp vào thành công của công ty.
+                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 15, fontWeight: 'bold', color: '#3730a3', borderBottom: '2px solid #3730a3', paddingBottom: 6, marginBottom: 12, textTransform: 'uppercase' }}>
+                      Học vấn
+                    </div>
+                    <div style={{ paddingLeft: 8 }}>
+                      {getEducationText(cvPreview.industry)}
+                    </div>
+                  </div>
+
+                  {/* Skills */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 15, fontWeight: 'bold', color: '#3730a3', borderBottom: '2px solid #3730a3', paddingBottom: 6, marginBottom: 12, textTransform: 'uppercase' }}>
+                      Kỹ năng
+                    </div>
+                    <div style={{ paddingLeft: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(cvPreview.skills || []).map((skill) => (
+                        <span key={skill} style={{ background: '#e0e7ff', color: '#3730a3', padding: '4px 12px', borderRadius: 16, fontSize: 12 }}>
+                          {skill}
+                        </span>
+                      ))}
+                      {(!cvPreview.skills || cvPreview.skills.length === 0) && <span style={{ color: '#9ca3af' }}>Chưa cập nhật</span>}
+                    </div>
+                  </div>
+
+                  {/* Experience */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 15, fontWeight: 'bold', color: '#3730a3', borderBottom: '2px solid #3730a3', paddingBottom: 6, marginBottom: 12, textTransform: 'uppercase' }}>
+                      Kinh nghiệm làm việc
+                    </div>
+                    <div style={{ paddingLeft: 8 }}>
+                      {getExperienceText(cvPreview.yearsExperience)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            <div className="flex gap-2 mt-4">
+              <button className="btn btn-outline" onClick={() => setCvPreview(null)}>Đóng</button>
+            </div>
           </div>
         </div>
       )}

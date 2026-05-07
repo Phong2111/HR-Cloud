@@ -38,4 +38,29 @@ public class Staff {
 
     @Column(name = "DocumentFolder", length = 255)
     private String documentFolder;
+
+    // Fields from candidate recruitment
+    @Column(name = "CandidateID", length = 100)
+    private String candidateId;  // Reference to the original candidate
+
+    @Column(name = "CandidateEmail", length = 150)
+    private String candidateEmail;
+
+    @Column(name = "CandidatePhone", length = 50)
+    private String candidatePhone;
+
+    @Column(name = "CandidateIndustry", length = 100)
+    private String candidateIndustry;
+
+    @Column(name = "CandidatePosition", length = 100)
+    private String candidatePosition;
+
+    @Column(name = "CandidateSkills", length = 500)
+    private String candidateSkills;  // Comma-separated skills
+
+    @Column(name = "CandidateExperience")
+    private Integer candidateExperience;  // Years of experience
+
+    @Column(name = "RecruitedAt")
+    private java.time.LocalDateTime recruitedAt;  // When the candidate was hired
 }

@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class StaffRequest {
     @NotNull(message = "ID is required")
@@ -27,4 +29,13 @@ public class StaffRequest {
     private String roleTitle;
 
     private String documentFolder;
+
+    // Fields from candidate recruitment
+    private String candidateId;
+    private String candidateEmail;
+    private String candidatePhone;
+    private String candidateIndustry;
+    private String candidatePosition;
+    private List<String> candidateSkills;
+    private Integer candidateExperience;
 }
